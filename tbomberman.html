@@ -1,0 +1,959 @@
+let tileSize = 40;
+let gridSize = 15;
+let grid = [];
+let player = null;
+let bombs = [];
+let explosions = [];
+let enemies = [];
+let powerUps = [];
+let level = 1;
+let gameState = 'playing';
+let lastBombTime = 0;
+let bombCooldown = 500;
+let storyState = 'tutorial';
+let storyIndex = 0;
+let particles = [];
+let lastPowerUpTime = 0;
+let maxBombs = 3;
+let playerSpeed = 0.7;
+let bombRange = 2;
+let fadeAlpha = 0;
+let joystick = null;
+let bombButton = null;
+let touchActive = false;
+
+const stories = [
+  { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys or joystick (touchscreen), place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nPress ENTER to continue." },
+  { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nPress ENTER to start." },
+  { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nPress ENTER to continue." },
+  { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nPress ENTER to continue." },
+  { level: 41, text: "The Tech Giants strike back in the Algorithm Jungle! Their minions dodge T-Man’s bombs, weaving through dense mazes. T-Man learns their tricks, planting clever traps to outsmart them.\n\nPress ENTER to continue." },
+  { level: 61, text: "T-Man rallies a digital rebellion in the Server Depths! The Tech Giants unleash their ultimate weapon: bomb-dropping drones. T-Man fights fire with fire, determined to break their control.\n\nPress ENTER to continue." },
+  { level: 81, text: "In the heart of the Data Core, T-Man faces the Tech Giants’ full might. Hordes of minions swarm, but T-Man’s heart shines bright. Can he defeat the monopolies and restore freedom?\n\nPress ENTER to continue." }
+];
+
+function debug(msg) {
+  console.log(msg);
+  fill(255, 255, 0);
+  textSize(14);
+  textAlign(LEFT, TOP);
+  text(msg, 10, 10 + textAscent() * debug.messages.length);
+  if (debug.messages.length > 10) debug.messages.shift();
+}
+debug.messages = [];
+
+class Particle {
+  constructor(x, y, vx, vy, color) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.color = color;
+    this.life = 30;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life--;
+  }
+
+  draw() {
+    fill(this.color);
+    noStroke();
+    ellipse(this.x, this.y, 5);
+  }
+}
+
+class PowerUp {
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.type = type;
+    this.timer = 300;
+    this.anim = 0;
+  }
+
+  draw() {
+    this.anim += 0.15;
+    let animScale = 1 + sin(this.anim) * 0.15;
+    push();
+    translate(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2);
+    scale(animScale);
+    let col, symbol;
+    if (this.type === 'extraBomb') {
+      col = color(46, 204, 113);
+      symbol = '+B';
+    } else if (this.type === 'speedBoost') {
+      col = color(52, 152, 219);
+      symbol = 'S';
+    } else {
+      col = color(230, 126, 34);
+      symbol = 'R';
+    }
+    fill(0, 0, 0, 50);
+    ellipse(3, 3, tileSize * 0.9);
+    fill(red(col), green(col), blue(col), 80);
+    noStroke();
+    ellipse(0, 0, tileSize * 1.1);
+    fill(col);
+    ellipse(0, 0, tileSize * 0.85);
+    fill(0, 0, 0, 100);
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    text(symbol, 2, 2);
+    fill(255, 255, 255, 220);
+    text(symbol, 0, 0);
+    pop();
+    debug('PowerUp ' + this.type + ' drawn at ' + this.x + ',' + this.y);
+  }
+
+  update() {
+    this.timer--;
+    if (this.timer <= 0) return false;
+    if (player && player.x === this.x && player.y === this.y) {
+      if (this.type === 'extraBomb') {
+        maxBombs++;
+        debug('Collected Extra Bomb: maxBombs = ' + maxBombs);
+      } else if (this.type === 'speedBoost') {
+        playerSpeed += 0.5;
+        debug('Collected Speed Boost: playerSpeed = ' + playerSpeed);
+      } else {
+        bombRange++;
+        debug('Collected Range Boost: bombRange = ' + bombRange);
+      }
+      return false;
+    }
+    return true;
+  }
+}
+
+class Player {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.anim = 0;
+    this.moveTimer = 0;
+    this.moveDirection = null;
+    this.isMoving = false;
+  }
+
+  draw() {
+    this.anim += 0.1;
+    let animScale = 1 + sin(this.anim) * 0.05;
+    push();
+    translate(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2);
+    scale(animScale);
+    fill(155, 89, 182);
+    rect(-tileSize / 4, -tileSize / 2, tileSize / 2, tileSize);
+    fill(232, 218, 239);
+    rect(-tileSize / 2, -tileSize / 2, tileSize, tileSize / 3);
+    fill(255, 255, 255, 200);
+    ellipse(0, -tileSize / 3, 12, 12);
+    pop();
+    debug('Player drawn at ' + this.x + ',' + this.y);
+  }
+
+  setDirection(dx, dy) {
+    if (!this.isMoving) {
+      this.moveDirection = { dx, dy };
+    }
+  }
+
+  move() {
+    if (!this.moveDirection) return;
+    this.moveTimer += playerSpeed * 0.1; // Kleinere Schritte für flüssige Bewegung
+    if (this.moveTimer >= 1) {
+      this.moveTimer -= 1;
+      let newX = this.x + this.moveDirection.dx;
+      let newY = this.y + this.moveDirection.dy;
+      if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize && grid[newY][newX] === 0) {
+        if (enemies.some(enemy => enemy.x === newX && enemy.y === newY)) {
+          gameState = 'gameover';
+          debug('Player killed by enemy collision at ' + newX + ',' + newY);
+          return;
+        }
+        if (bombs.some(b => b.x === newX && b.y === newY)) {
+          debug('Movement blocked by bomb at ' + newX + ',' + newY);
+          return;
+        }
+        this.isMoving = true;
+        this.x = newX;
+        this.y = newY;
+        this.isMoving = false;
+      }
+    }
+  }
+}
+
+class Joystick {
+  constructor(x, y, radius) {
+    this.baseX = x;
+    this.baseY = y;
+    this.radius = radius;
+    this.knobX = x;
+    this.knobY = y;
+    this.active = false;
+  }
+
+  update(touchX, touchY) {
+    if (this.active) {
+      let dx = touchX - this.baseX;
+      let dy = touchY - this.baseY;
+      let dist = sqrt(dx * dx + dy * dy);
+      if (dist > this.radius) {
+        dx = (dx / dist) * this.radius;
+        dy = (dy / dist) * this.radius;
+      }
+      this.knobX = this.baseX + dx;
+      this.knobY = this.baseY + dy;
+      let moveX = dx / this.radius;
+      let moveY = dy / this.radius;
+      if (player && abs(moveX) > 0.3 || abs(moveY) > 0.3) {
+        if (abs(moveX) > abs(moveY)) {
+          player.setDirection(moveX > 0 ? 1 : -1, 0);
+        } else {
+          player.setDirection(0, moveY > 0 ? 1 : -1);
+        }
+      }
+    }
+  }
+
+  draw() {
+    fill(119, 136, 119, 150);
+    ellipse(this.baseX, this.baseY, this.radius * 2);
+    fill(0, 255, 128, 200);
+    ellipse(this.knobX, this.knobY, this.radius * 0.8);
+  }
+
+  isTouched(touchX, touchY) {
+    let dx = touchX - this.baseX;
+    let dy = touchY - this.baseY;
+    return sqrt(dx * dx + dy * dy) < this.radius;
+  }
+}
+
+class Button {
+  constructor(x, y, size) {
+    this.x = x;
+    this.y = y;
+    this.size = size;
+    this.active = false;
+  }
+
+  draw() {
+    fill(this.active ? color(0, 255, 128, 220) : color(119, 136, 119, 150));
+    ellipse(this.x, this.y, this.size);
+    fill(34, 57, 34);
+    textAlign(CENTER, CENTER);
+    textSize(20);
+    text("B", this.x, this.y);
+  }
+
+  isTouched(touchX, touchY) {
+    let dx = touchX - this.x;
+    let dy = touchY - this.y;
+    return sqrt(dx * dx + dy * dy) < this.size / 2;
+  }
+}
+
+class Enemy {
+  constructor(x, y, type, level) {
+    this.x = x;
+    this.y = y;
+    this.type = type;
+    this.speed = 0.05 + level * 0.005;
+    this.moveTimer = 0;
+    this.intelligence = level * 1.5;
+    this.lastBombTime = 0;
+    this.anim = random(TWO_PI);
+  }
+
+  getColor() {
+    const colors = {
+      'Microsoft': color(0, 120, 215),
+      'Google': color(234, 67, 53),
+      'Apple': color(0, 0, 0),
+      'X': color(29, 155, 240),
+      'Amazon': color(255, 153, 0)
+    };
+    return colors[this.type] || color(128);
+  }
+
+  draw() {
+    this.anim += 0.1;
+    let animScale = 1 + sin(this.anim) * 0.05;
+    push();
+    translate(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2);
+    scale(animScale);
+    fill(0, 0, 0, 50);
+    rect(-tileSize / 3 + 3, -tileSize / 3 + 3, tileSize * 2/3, tileSize * 2/3, 10);
+    if (this.type === 'Microsoft') {
+      fill(this.getColor());
+      for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 2; j++) {
+          rect(-tileSize / 4 + i * tileSize / 4, -tileSize / 4 + j * tileSize / 4, tileSize / 6, tileSize / 6);
+        }
+      }
+    } else if (this.type === 'Google') {
+      let colors = [color(66, 133, 244), color(219, 68, 55), color(244, 180, 0), color(15, 157, 88)];
+      for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 2; j++) {
+          fill(colors[i * 2 + j]);
+          ellipse(-tileSize / 4 + i * tileSize / 4, -tileSize / 4 + j * tileSize / 4, tileSize / 8);
+        }
+      }
+    } else if (this.type === 'Apple') {
+      fill(this.getColor());
+      beginShape();
+      vertex(0, -tileSize / 3);
+      bezierVertex(tileSize / 4, -tileSize / 3, tileSize / 4, 0, 0, tileSize / 3);
+      bezierVertex(-tileSize / 4, 0, -tileSize / 4, -tileSize / 3, 0, -tileSize / 3);
+      endShape(CLOSE);
+      fill(255, 255, 255, 100);
+      ellipse(tileSize / 6, -tileSize / 6, tileSize / 8);
+    } else if (this.type === 'X') {
+      fill(this.getColor());
+      stroke(this.getColor());
+      strokeWeight(4);
+      line(-tileSize / 4, -tileSize / 4, tileSize / 4, tileSize / 4);
+      line(tileSize / 4, -tileSize / 4, -tileSize / 4, tileSize / 4);
+      noStroke();
+    } else if (this.type === 'Amazon') {
+      fill(this.getColor());
+      beginShape();
+      vertex(-tileSize / 4, 0);
+      vertex(0, -tileSize / 6);
+      vertex(tileSize / 4, 0);
+      vertex(0, tileSize / 6);
+      endShape();
+      arc(0, 0, tileSize / 2, tileSize / 4, 0, PI);
+    }
+    pop();
+    debug('Enemy ' + this.type + ' drawn at ' + this.x + ',' + this.y);
+  }
+
+  update() {
+    this.moveTimer += this.speed;
+    if (this.moveTimer >= 1) {
+      this.moveTimer = 0;
+      let possibleMoves = [
+        {dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}
+      ];
+      let safeMoves = possibleMoves.filter(m => {
+        let newX = this.x + m.dx;
+        let newY = this.y + m.dy;
+        if (newX < 0 || newX >= gridSize || newY < 0 || newY >= gridSize || grid[newY][newX] !== 0) return false;
+        return !bombs.some(b => b.x === newX && b.y === newY);
+      });
+      let move;
+      if (this.intelligence < 25) {
+        move = safeMoves.length > 0 ? random(safeMoves) : null;
+      } else if (this.intelligence < 50) {
+        let dx = player ? player.x - this.x : 0;
+        let dy = player ? player.y - this.y : 0;
+        move = safeMoves.find(m => 
+          (Math.abs(dx) > Math.abs(dy) ? m.dx === (dx > 0 ? 1 : -1) : m.dy === (dy > 0 ? 1 : -1))
+        ) || (safeMoves.length > 0 ? random(safeMoves) : null);
+      } else {
+        let dx = player ? player.x - this.x : 0;
+        let dy = player ? player.y - this.y : 0;
+        move = safeMoves.find(m => 
+          (Math.abs(dx) > Math.abs(dy) ? m.dx === (dx > 0 ? 1 : -1) : m.dy === (dy > 0 ? 1 : -1))
+        ) || (safeMoves.length > 0 ? random(safeMoves) : null);
+        if (this.intelligence >= 50 && millis() - this.lastBombTime > bombCooldown * 2) {
+          bombs.push(new Bomb(this.x, this.y));
+          this.lastBombTime = millis();
+          debug('Enemy ' + this.type + ' placed bomb');
+        }
+      }
+      if (move) {
+        let newX = this.x + move.dx;
+        let newY = this.y + move.dy;
+        if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize && grid[newY][newX] === 0) {
+          this.x = newX;
+          this.y = newY;
+          if (player && player.x === newX && player.y === newY) {
+            gameState = 'gameover';
+            debug('Player killed by enemy collision at ' + newX + ',' + newY);
+          }
+        }
+      }
+    }
+  }
+}
+
+class Bomb {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.timer = 120;
+    this.exploded = false;
+    this.anim = 0;
+  }
+
+  update() {
+    this.timer--;
+    this.anim += 0.1;
+    if (this.timer <= 0 && !this.exploded) {
+      this.exploded = true;
+      explosions.push(new Explosion(this.x, this.y));
+      for (let i = 0; i < 10; i++) {
+        let col = lerpColor(color(34, 57, 34), color(0, 255, 0), random(1));
+        particles.push(new Particle(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2, random(-2, 2), random(-2, 2), col));
+      }
+      debug('Bomb exploded at ' + this.x + ',' + this.y);
+    }
+  }
+
+  draw() {
+    let animScale = 1 + sin(this.anim) * 0.05;
+    push();
+    translate(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2);
+    scale(animScale);
+    fill(44, 44, 44);
+    ellipse(0, 0, tileSize * 0.6);
+    fill(0, 255, 128);
+    let fuseLength = 5 + sin(this.anim * 2) * 2;
+    ellipse(tileSize * 0.2, -tileSize * 0.3, 5, 5);
+    stroke(0, 255, 128);
+    line(tileSize * 0.1, -tileSize * 0.2, tileSize * 0.2, -tileSize * 0.3);
+    noStroke();
+    pop();
+    debug('Bomb drawn at ' + this.x + ',' + this.y);
+  }
+}
+
+class Explosion {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.timer = 30;
+    this.range = bombRange;
+    this.anim = 0;
+  }
+
+  draw() {
+    this.anim += 0.15;
+    let alpha = 255 * (this.timer / 30);
+    let animScale = 1 + sin(this.anim) * 0.1;
+    push();
+    translate(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2);
+    scale(animScale);
+    fill(0, 255, 128, alpha);
+    for (let i = -this.range; i <= this.range; i++) {
+      if (this.x + i >= 0 && this.x + i < gridSize) {
+        rect(i * tileSize, 0, tileSize, tileSize);
+      }
+      if (this.y + i >= 0 && this.y + i < gridSize) {
+        rect(0, i * tileSize, tileSize, tileSize);
+      }
+    }
+    fill(255, 255, 255, alpha);
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    text('Boom!', 0, 0);
+    pop();
+    debug('Explosion drawn at ' + this.x + ',' + this.y);
+  }
+
+  update() {
+    this.timer--;
+
+    function isPathBlocked(startX, startY, targetX, targetY) {
+      if (startX === targetX) {
+        let yMin = Math.min(startY, targetY);
+        let yMax = Math.max(startY, targetY);
+        for (let y = yMin + 1; y < yMax; y++) {
+          if (grid[y][startX] === 1 || grid[y][startX] === 2) return true;
+        }
+      } else if (startY === targetY) {
+        let xMin = Math.min(startX, targetX);
+        let xMax = Math.max(startX, targetX);
+        for (let x = xMin + 1; x < xMax; x++) {
+          if (grid[startY][x] === 1 || grid[startY][x] === 2) return true;
+        }
+      }
+      return false;
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      let enemy = enemies[i];
+      if (enemy && (
+          (enemy.x === this.x && Math.abs(enemy.y - this.y) <= this.range && !isPathBlocked(this.x, this.y, enemy.x, enemy.y)) ||
+          (enemy.y === this.y && Math.abs(enemy.x - this.x) <= this.range && !isPathBlocked(this.x, this.y, enemy.x, enemy.y))
+        )) {
+        enemies.splice(i, 1);
+        debug('Enemy killed at ' + enemy.x + ',' + enemy.y);
+      }
+    }
+
+    if (player && (
+        (player.x === this.x && Math.abs(player.y - this.y) <= this.range && !isPathBlocked(this.x, this.y, player.x, player.y)) ||
+        (player.y === this.y && Math.abs(player.x - this.x) <= this.range && !isPathBlocked(this.x, this.y, player.x, player.y))
+      )) {
+      gameState = 'gameover';
+      debug('Player killed by explosion');
+    }
+
+    for (let i = -this.range; i <= this.range; i++) {
+      if (this.x + i >= 0 && this.x + i < gridSize && grid[this.y][this.x + i] === 2 && !isPathBlocked(this.x, this.y, this.x + i, this.y)) {
+        grid[this.y][this.x + i] = 0;
+        if (random() < 0.3) {
+          let types = ['extraBomb', 'speedBoost', 'range'];
+          powerUps.push(new PowerUp(this.x + i, this.y, random(types)));
+          debug('PowerUp spawned at ' + (this.x + i) + ',' + this.y);
+        }
+        for (let j = 0; j < 5; j++) {
+          particles.push(new Particle((this.x + i) * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2, random(-1, 1), random(-1, 1), color(100, 150, 255, 50)));
+        }
+        debug('Wall destroyed at ' + (this.x + i) + ',' + this.y);
+      }
+      if (this.y + i >= 0 && this.y + i < gridSize && grid[this.y + i][this.x] === 2 && !isPathBlocked(this.x, this.y, this.x, this.y + i)) {
+        grid[this.y + i][this.x] = 0;
+        if (random() < 0.3) {
+          let types = ['extraBomb', 'speedBoost', 'range'];
+          powerUps.push(new PowerUp(this.x, this.y + i, random(types)));
+          debug('PowerUp spawned at ' + this.x + ',' + (this.y + i));
+        }
+        for (let j = 0; j < 5; j++) {
+          particles.push(new Particle(this.x * tileSize + tileSize / 2, (this.y + i) * tileSize + tileSize / 2, random(-1, 1), random(-1, 1), color(100, 150, 255, 50)));
+        }
+        debug('Wall destroyed at ' + this.x + ',' + (this.y + i));
+      }
+    }
+  }
+}
+
+function getLevelColors() {
+  if (level >= 81) {
+    return {
+      ground: color(57, 57, 34),
+      grid: color(85, 85, 51, 50),
+      wall: color(119, 119, 85),
+      wallHighlight: color(153, 153, 119),
+      destructible: color(102, 85, 68),
+      destructibleHighlight: color(136, 119, 102)
+    };
+  } else if (level >= 61) {
+    return {
+      ground: color(34, 34, 34),
+      grid: color(51, 51, 51, 50),
+      wall: color(85, 85, 85),
+      wallHighlight: color(119, 119, 119),
+      destructible: color(102, 85, 68),
+      destructibleHighlight: color(136, 119, 102)
+    };
+  } else if (level >= 41) {
+    return {
+      ground: color(57, 34, 34),
+      grid: color(85, 51, 51, 50),
+      wall: color(102, 85, 85),
+      wallHighlight: color(136, 119, 119),
+      destructible: color(102, 85, 68),
+      destructibleHighlight: color(136, 119, 102)
+    };
+  } else if (level >= 21) {
+    return {
+      ground: color(34, 57, 68),
+      grid: color(51, 85, 102, 50),
+      wall: color(85, 102, 119),
+      wallHighlight: color(119, 136, 153),
+      destructible: color(102, 85, 68),
+      destructibleHighlight: color(136, 119, 102)
+    };
+  } else {
+    return {
+      ground: color(34, 57, 34),
+      grid: color(68, 102, 68, 50),
+      wall: color(85, 102, 85),
+      wallHighlight: color(119, 136, 119),
+      destructible: color(102, 85, 68),
+      destructibleHighlight: color(136, 119, 102)
+    };
+  }
+}
+
+function setup() {
+  debug('Starting setup...');
+  createCanvas(gridSize * tileSize, gridSize * tileSize);
+  grid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if (i % 2 === 1 && j % 2 === 1) {
+        grid[i][j] = 1;
+      }
+    }
+  }
+  let wallDensity = 0.35 + level * 0.005;
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if (grid[i][j] === 0 && random() < wallDensity && !(i <= 2 && j <= 2)) {
+        grid[i][j] = 2;
+      }
+    }
+  }
+  player = new Player(1, 1);
+  grid[1][1] = grid[1][2] = grid[2][1] = 0;
+  let enemyTypes = ['Microsoft', 'Google', 'Apple', 'X', 'Amazon'];
+  let numEnemies = Math.min(10, 3 + floor(level / 10));
+  for (let i = 0; i < numEnemies; i++) {
+    let x, y;
+    let attempts = 0;
+    do {
+      x = floor(random(gridSize));
+      y = floor(random(gridSize));
+      attempts++;
+      if (attempts > 100) break;
+    } while (grid[y][x] !== 0 || (x <= 2 && y <= 2) || enemies.some(e => e.x === x && e.y === y));
+    if (attempts <= 100) {
+      enemies.push(new Enemy(x, y, enemyTypes[floor(random(enemyTypes.length))], level));
+      debug('Enemy spawned at ' + x + ',' + y);
+    }
+  }
+  powerUps = [];
+  maxBombs = 3;
+  playerSpeed = 0.7;
+  bombRange = 2;
+  fadeAlpha = 0;
+  joystick = new Joystick(80, height - 80, 50);
+  bombButton = new Button(width - 80, height - 80, 60);
+  debug('Setup completed');
+}
+
+function draw() {
+  const colors = getLevelColors();
+  background(colors.ground);
+  stroke(colors.grid);
+  strokeWeight(1);
+  for (let i = 0; i < width; i += tileSize / 2) {
+    line(i, 0, i, height);
+    line(0, i, width, i);
+  }
+  noStroke();
+  if (frameCount % 60 === 0) {
+    particles.push(new Particle(random(width), random(height), 0, 0, color(100, 150, 255, 50)));
+  }
+
+  debug('Drawing frame...');
+
+  if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
+    fadeAlpha = min(fadeAlpha + 5, 255);
+    fill(34, 57, 34, fadeAlpha);
+    rect(50, 50, width - 100, height - 100, 20);
+    fill(119, 136, 119);
+    textSize(18);
+    textAlign(CENTER, CENTER);
+    text(stories[storyIndex].text, 50, 50, width - 100, height - 100);
+    return;
+  }
+
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      fill(colors.ground);
+      rect(j * tileSize, i * tileSize, tileSize, tileSize);
+    }
+  }
+
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if (grid[i][j] === 1) {
+        fill(colors.wall);
+        rect(j * tileSize, i * tileSize, tileSize, tileSize);
+        fill(colors.wallHighlight);
+        rect(j * tileSize + 5, i * tileSize + 5, tileSize - 10, tileSize - 10, 5);
+      } else if (grid[i][j] === 2) {
+        fill(colors.destructible);
+        rect(j * tileSize, i * tileSize, tileSize, tileSize);
+        fill(colors.destructibleHighlight);
+        rect(j * tileSize + 10, i * tileSize + 10, tileSize - 20, tileSize - 20);
+      }
+    }
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    particles[i].draw();
+    if (particles[i].life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+
+  for (let powerUp of powerUps) {
+    powerUp.draw();
+  }
+  powerUps = powerUps.filter(p => p.update());
+
+  if (millis() - lastPowerUpTime > random(10000, 20000)) {
+    let x, y;
+    let attempts = 0;
+    do {
+      x = floor(random(gridSize));
+      y = floor(random(gridSize));
+      attempts++;
+      if (attempts > 100) break;
+    } while (
+      grid[y][x] !== 0 ||
+      enemies.some(e => e.x === x && e.y === y) ||
+      (player && player.x === x && player.y === y) ||
+      bombs.some(b => b.x === x && b.y === y)
+    );
+    if (attempts <= 100) {
+      let types = ['extraBomb', 'speedBoost', 'range'];
+      powerUps.push(new PowerUp(x, y, random(types)));
+      debug('PowerUp spawned at ' + x + ',' + y);
+      lastPowerUpTime = millis();
+    }
+  }
+
+  for (let bomb of bombs) {
+    bomb.draw();
+    bomb.update();
+  }
+  bombs = bombs.filter(b => !b.exploded);
+
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].draw();
+    explosions[i].update();
+    if (explosions[i].timer <= 0) {
+      explosions.splice(i, 1);
+    }
+  }
+
+  for (let enemy of enemies) {
+    enemy.draw();
+    enemy.update();
+  }
+
+  if (player && gameState === 'playing') {
+    player.move();
+    player.draw();
+  }
+
+  if (enemies.length === 0 && gameState === 'playing') {
+    level++;
+    if (level > 100) {
+      gameState = 'victory';
+    } else {
+      bombs = [];
+      explosions = [];
+      enemies = [];
+      powerUps = [];
+      let nextStory = stories.find(s => s.level === (level === 2 ? 1.5 : level));
+      if (nextStory) {
+        storyState = level === 2 ? 'level1complete' : 'intro';
+        storyIndex = stories.indexOf(nextStory);
+        return;
+      }
+      setup();
+      debug('Level ' + level);
+    }
+  }
+
+  if (gameState === 'gameover') {
+    fadeAlpha = min(fadeAlpha + 5, 255);
+    fill(0, 0, 0, fadeAlpha);
+    rect(0, 0, width, height);
+    fill(0, 255, 128);
+    textSize(48);
+    textAlign(CENTER, CENTER);
+    text('Game Over', width / 2, height / 2 - 50);
+    let bx = width / 2 - 100;
+    let by = height / 2 + 20;
+    let hover = mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70;
+    fill(hover ? color(0, 255, 128, 220) : color(0, 255, 128));
+    rect(bx, by, 200, 70, 10);
+    fill(255, 255, 255, 100);
+    textSize(20);
+    text('Restart', width / 2 + 2, height / 2 + 37);
+    fill(34, 57, 34);
+    text('Restart', width / 2, height / 2 + 35);
+    fill(255, 255, 255, 100);
+    textSize(14);
+    text('Press ENTER', width / 2 + 2, height / 2 + 57);
+    fill(34, 57, 34);
+    text('Press ENTER', width / 2, height / 2 + 55);
+    noLoop();
+  }
+
+  if (gameState === 'victory') {
+    fadeAlpha = min(fadeAlpha + 5, 255);
+    fill(0, 0, 0, fadeAlpha);
+    rect(50, 50, width - 100, height - 100, 20);
+    fill(119, 255, 119);
+    textSize(18);
+    textAlign(CENTER, CENTER);
+    text('Victory! T-Man triumphs over the Tech Giants, freeing the digital world. Users celebrate, and T-Man dances under a starry sky. Play again?', 50, 50, width - 100, height - 100);
+    let bx = width / 2 - 100;
+    let by = height - 120;
+    let hover = mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70;
+    fill(hover ? color(0, 255, 128, 220) : color(0, 255, 128));
+    rect(bx, by, 200, 70, 10);
+    fill(255, 255, 255, 100);
+    textSize(20);
+    text('Restart', width / 2 + 2, height - 93);
+    fill(34, 57, 34);
+    text('Restart', width / 2, height - 95);
+    fill(255, 255, 255, 100);
+    textSize(14);
+    text('Press ENTER', width / 2 + 2, height - 73);
+    fill(34, 57, 34);
+    text('Press ENTER', width / 2, height - 75);
+    noLoop();
+  }
+
+  // Kompakter Infotext
+  fill(34, 57, 34, 200);
+  stroke(119, 255, 119);
+  strokeWeight(1);
+  rect(width - 150, 10, 140, 100, 10);
+  noStroke();
+  fill(119, 255, 119);
+  textSize(14);
+  textAlign(LEFT, TOP);
+  text('Level: ' + level, width - 140, 20);
+  text('Move: Arrow Keys', width - 140, 35);
+  text('Bomb: Space', width - 140, 50);
+  text('Bombs: ' + maxBombs, width - 140, 65);
+  text('Speed: ' + playerSpeed.toFixed(1), width - 140, 80);
+  text('Range: ' + bombRange, width - 140, 95);
+
+  // Touch-Steuerung rendern
+  if (touches.length > 0 || touchActive) {
+    joystick.draw();
+    bombButton.draw();
+  }
+}
+
+function keyPressed() {
+  if (storyState === 'tutorial') {
+    if (keyCode === ENTER) {
+      storyState = 'intro';
+      storyIndex = 1;
+      return;
+    }
+    return false;
+  }
+  if (storyState === 'intro' || storyState === 'level1complete') {
+    if (keyCode === ENTER) {
+      storyState = 'playing';
+      gameState = 'playing';
+      setup();
+      return;
+    }
+    return false;
+  }
+  if (gameState === 'gameover' || gameState === 'victory') {
+    if (keyCode === ENTER) {
+      restartGame();
+      return false;
+    }
+  }
+  if (gameState !== 'playing') return false;
+  if (key === ' ' && millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
+    bombs.push(new Bomb(player.x, player.y));
+    lastBombTime = millis();
+    debug('Bomb placed at ' + player.x + ',' + player.y);
+  }
+  if (player) {
+    if (keyCode === UP_ARROW) player.setDirection(0, -1);
+    else if (keyCode === DOWN_ARROW) player.setDirection(0, 1);
+    else if (keyCode === LEFT_ARROW) player.setDirection(-1, 0);
+    else if (keyCode === RIGHT_ARROW) player.setDirection(1, 0);
+  }
+  return false;
+}
+
+function keyReleased() {
+  if (gameState !== 'playing' || !player) return;
+  if (keyCode === UP_ARROW && player.moveDirection && player.moveDirection.dy === -1) player.moveDirection = null;
+  else if (keyCode === DOWN_ARROW && player.moveDirection && player.moveDirection.dy === 1) player.moveDirection = null;
+  else if (keyCode === LEFT_ARROW && player.moveDirection && player.moveDirection.dx === -1) player.moveDirection = null;
+  else if (keyCode === RIGHT_ARROW && player.moveDirection && player.moveDirection.dx === 1) player.moveDirection = null;
+}
+
+function touchStarted() {
+  if (gameState !== 'playing') {
+    if (gameState === 'gameover') {
+      let bx = width / 2 - 100;
+      let by = height / 2 + 20;
+      if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+        restartGame();
+      }
+    } else if (gameState === 'victory') {
+      let bx = width / 2 - 100;
+      let by = height - 120;
+      if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+        restartGame();
+      }
+    }
+    return false;
+  }
+  if (touches.length > 0) {
+    let touchX = touches[0].x;
+    let touchY = touches[0].y;
+    if (joystick.isTouched(touchX, touchY)) {
+      joystick.active = true;
+      touchActive = true;
+    } else if (bombButton.isTouched(touchX, touchY)) {
+      bombButton.active = true;
+      if (millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
+        bombs.push(new Bomb(player.x, player.y));
+        lastBombTime = millis();
+        debug('Bomb placed via touch at ' + player.x + ',' + player.y);
+      }
+    }
+  }
+  return false;
+}
+
+function touchMoved() {
+  if (gameState !== 'playing') return false;
+  if (touches.length > 0 && joystick.active) {
+    joystick.update(touches[0].x, touches[0].y);
+  }
+  return false;
+}
+
+function touchEnded() {
+  if (gameState !== 'playing') return false;
+  joystick.active = false;
+  bombButton.active = false;
+  if (player) player.moveDirection = null;
+  return false;
+}
+
+function mousePressed() {
+  if (gameState === 'gameover') {
+    let bx = width / 2 - 100;
+    let by = height / 2 + 20;
+    if (mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70) {
+      restartGame();
+    }
+  } else if (gameState === 'victory') {
+    let bx = width / 2 - 100;
+    let by = height - 120;
+    if (mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70) {
+      restartGame();
+    }
+  }
+}
+
+function restartGame() {
+  level = 1;
+  gameState = 'playing';
+  storyState = 'tutorial';
+  storyIndex = 0;
+  bombs = [];
+  explosions = [];
+  enemies = [];
+  powerUps = [];
+  maxBombs = 3;
+  playerSpeed = 0.7;
+  bombRange = 2;
+  fadeAlpha = 0;
+  touchActive = false;
+  loop();
+  setup();
+  debug('Game restarted');
+}
