@@ -24,12 +24,13 @@
       Join T-Man in his epic battle against the Tech Giants! Navigate through mazes, place bombs, and collect power-ups to free the digital realm.
     </p>
   </header>
-  <main class="w-full max-w-[600px] px-4">
-    <div class="bg-[#2e3d34] p-4 rounded-lg shadow-lg">
+  <main class="w-full max-w-[90%] px-4">
+    <div class="bg-[#2e3d34] p-4 rounded-lg shadow-lg flex justify-center">
       <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
       <script>
-        let tileSize = 40;
+        let tileSize;
         let gridSize = 15;
+        let canvasSize;
         let grid = [];
         let player = null;
         let bombs = [];
@@ -37,7 +38,7 @@
         let enemies = [];
         let powerUps = [];
         let level = 1;
-        let gameState = 'start'; // Changed to start state
+        let gameState = 'start';
         let lastBombTime = 0;
         let bombCooldown = 500;
         let storyState = 'tutorial';
@@ -84,7 +85,7 @@
           draw() {
             fill(this.color);
             noStroke();
-            ellipse(this.x, this.y, 5);
+            ellipse(this.x, this.y, tileSize * 0.125);
           }
         }
 
@@ -123,7 +124,7 @@
             ellipse(0, 0, tileSize * 0.85);
             fill(0, 0, 0, 100);
             textAlign(CENTER, CENTER);
-            textSize(16);
+            textSize(tileSize * 0.4);
             text(symbol, 2, 2);
             fill(255, 255, 255, 220);
             text(symbol, 0, 0);
@@ -165,7 +166,7 @@
             fill(232, 218, 239);
             rect(-tileSize / 2, -tileSize / 2, tileSize, tileSize / 3);
             fill(255, 255, 255, 200);
-            ellipse(0, -tileSize / 3, 12, 12);
+            ellipse(0, -tileSize / 3, tileSize * 0.3, tileSize * 0.3);
             pop();
           }
 
@@ -267,7 +268,7 @@
             ellipse(this.x, this.y, this.size);
             fill(34, 57, 34);
             textAlign(CENTER, CENTER);
-            textSize(20);
+            textSize(this.size * 0.33);
             text("B", this.x, this.y);
           }
 
@@ -433,7 +434,7 @@
             ellipse(0, 0, tileSize * 0.6);
             fill(0, 255, 128);
             let fuseLength = 5 + sin(this.anim * 2) * 2;
-            ellipse(tileSize * 0.2, -tileSize / 3, 5, 5);
+            ellipse(tileSize * 0.2, -tileSize / 3, tileSize * 0.125, tileSize * 0.125);
             stroke(0, 255, 128);
             line(tileSize * 0.1, -tileSize * 0.2, tileSize * 0.2, -tileSize / 3);
             noStroke();
@@ -468,7 +469,7 @@
             }
             fill(255, 255, 255, alpha);
             textAlign(CENTER, CENTER);
-            textSize(24);
+            textSize(tileSize * 0.6);
             text('Boom!', 0, 0);
             pop();
           }
@@ -585,7 +586,13 @@
         }
 
         function setup() {
-          createCanvas(gridSize * tileSize, gridSize * tileSize);
+          let maxCanvasSize = 800; // Max size for large screens
+          let minCanvasSize = 300; // Min size for small screens
+          canvasSize = min(windowWidth * 0.9, windowHeight * 0.7, maxCanvasSize);
+          canvasSize = max(canvasSize, minCanvasSize);
+          canvasSize = floor(canvasSize / gridSize) * gridSize; // Ensure divisibility by gridSize
+          tileSize = canvasSize / gridSize;
+          createCanvas(canvasSize, canvasSize);
           grid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
           for (let i = 0; i < gridSize; i++) {
             for (let j = 0; j < gridSize; j++) {
@@ -624,8 +631,20 @@
           playerSpeed = 0.7;
           bombRange = 2;
           fadeAlpha = 0;
-          joystick = new Joystick(80, height - 80, 50);
-          bombButton = new Button(width - 80, height - 80, 60);
+          joystick = new Joystick(tileSize * 2, canvasSize - tileSize * 2, tileSize * 1.25);
+          bombButton = new Button(canvasSize - tileSize * 2, canvasSize - tileSize * 2, tileSize * 1.5);
+        }
+
+        function windowResized() {
+          let maxCanvasSize = 800;
+          let minCanvasSize = 300;
+          canvasSize = min(windowWidth * 0.9, windowHeight * 0.7, maxCanvasSize);
+          canvasSize = max(canvasSize, minCanvasSize);
+          canvasSize = floor(canvasSize / gridSize) * gridSize;
+          tileSize = canvasSize / gridSize;
+          resizeCanvas(canvasSize, canvasSize);
+          joystick = new Joystick(tileSize * 2, canvasSize - tileSize * 2, tileSize * 1.25);
+          bombButton = new Button(canvasSize - tileSize * 2, canvasSize - tileSize * 2, tileSize * 1.5);
         }
 
         function draw() {
@@ -633,38 +652,38 @@
           background(colors.ground);
           stroke(colors.grid);
           strokeWeight(1);
-          for (let i = 0; i < width; i += tileSize / 2) {
-            line(i, 0, i, height);
-            line(0, i, width, i);
+          for (let i = 0; i < canvasSize; i += tileSize / 2) {
+            line(i, 0, i, canvasSize);
+            line(0, i, canvasSize, i);
           }
           noStroke();
 
           if (gameState === 'start') {
             fadeAlpha = min(fadeAlpha + 5, 255);
             fill(34, 57, 34, fadeAlpha);
-            rect(50, 50, width - 100, height - 100, 20);
+            rect(tileSize * 1.25, tileSize * 1.25, canvasSize - tileSize * 2.5, canvasSize - tileSize * 2.5, 20);
             fill(0, 255, 128);
-            textSize(48);
+            textSize(tileSize * 1.2);
             textAlign(CENTER, CENTER);
-            text('T-Man\'s Quest', width / 2, height / 2 - 50);
+            text('T-Man\'s Quest', canvasSize / 2, canvasSize / 2 - tileSize);
             fill(119, 136, 119);
-            textSize(18);
-            text('Press ENTER or tap to start', width / 2, height / 2 + 20);
+            textSize(tileSize * 0.45);
+            text('Press ENTER or tap to start', canvasSize / 2, canvasSize / 2 + tileSize * 0.5);
             return;
           }
 
           if (frameCount % 60 === 0) {
-            particles.push(new Particle(random(width), random(height), 0, 0, color(100, 150, 255, 50)));
+            particles.push(new Particle(random(canvasSize), random(canvasSize), 0, 0, color(100, 150, 255, 50)));
           }
 
           if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
             fadeAlpha = min(fadeAlpha + 5, 255);
             fill(34, 57, 34, fadeAlpha);
-            rect(50, 50, width - 100, height - 100, 20);
+            rect(tileSize * 1.25, tileSize * 1.25, canvasSize - tileSize * 2.5, canvasSize - tileSize * 2.5, 20);
             fill(119, 136, 119);
-            textSize(18);
+            textSize(tileSize * 0.45);
             textAlign(CENTER, CENTER);
-            text(stories[storyIndex].text, 50, 50, width - 100, height - 100);
+            text(stories[storyIndex].text, tileSize * 1.25, tileSize * 1.25, canvasSize - tileSize * 2.5, canvasSize - tileSize * 2.5);
             return;
           }
 
@@ -681,12 +700,12 @@
                 fill(colors.wall);
                 rect(j * tileSize, i * tileSize, tileSize, tileSize);
                 fill(colors.wallHighlight);
-                rect(j * tileSize + 5, i * tileSize + 5, tileSize - 10, tileSize - 10, 5);
+                rect(j * tileSize + tileSize * 0.125, i * tileSize + tileSize * 0.125, tileSize * 0.75, tileSize * 0.75, 5);
               } else if (grid[i][j] === 2) {
                 fill(colors.destructible);
                 rect(j * tileSize, i * tileSize, tileSize, tileSize);
                 fill(colors.destructibleHighlight);
-                rect(j * tileSize + 10, i * tileSize + 10, tileSize - 20, tileSize - 20);
+                rect(j * tileSize + tileSize * 0.25, i * tileSize + tileSize * 0.25, tileSize * 0.5, tileSize * 0.5);
               }
             }
           }
@@ -770,52 +789,52 @@
           if (gameState === 'gameover') {
             fadeAlpha = min(fadeAlpha + 5, 255);
             fill(34, 57, 34, fadeAlpha);
-            rect(50, 50, width - 100, height - 100, 20);
+            rect(tileSize * 1.25, tileSize * 1.25, canvasSize - tileSize * 2.5, canvasSize - tileSize * 2.5, 20);
             fill(119, 255, 119);
-            textSize(48);
+            textSize(tileSize * 1.2);
             textAlign(CENTER, CENTER);
-            text('Game Over', width / 2, height / 2 - 50);
-            let bx = width / 2 - 100;
-            let by = height / 2 + 20;
-            let hover = mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70;
+            text('Game Over', canvasSize / 2, canvasSize / 2 - tileSize);
+            let bx = canvasSize / 2 - tileSize * 2.5;
+            let by = canvasSize / 2 + tileSize * 0.5;
+            let hover = mouseX > bx && mouseX < bx + tileSize * 5 && mouseY > by && mouseY < by + tileSize * 1.75;
             fill(hover ? color(0, 255, 128, 220) : color(0, 255, 128));
-            rect(bx, by, 200, 70, 10);
+            rect(bx, by, tileSize * 5, tileSize * 1.75, 10);
             fill(255, 255, 255, 100);
-            textSize(20);
-            text('Restart', width / 2 + 2, by + 37);
+            textSize(tileSize * 0.5);
+            text('Restart', canvasSize / 2 + 2, by + tileSize * 0.925);
             fill(34, 57, 34);
-            text('Restart', width / 2, by + 35);
+            text('Restart', canvasSize / 2, by + tileSize * 0.875);
             fill(255, 255, 255, 100);
-            textSize(14);
-            text('Tap screen or press ENTER', width / 2 + 2, by + 57);
+            textSize(tileSize * 0.35);
+            text('Tap screen or press ENTER', canvasSize / 2 + 2, by + tileSize * 1.425);
             fill(34, 57, 34);
-            text('Tap screen or press ENTER', width / 2, by + 55);
+            text('Tap screen or press ENTER', canvasSize / 2, by + tileSize * 1.375);
             noLoop();
           }
 
           if (gameState === 'victory') {
             fadeAlpha = min(fadeAlpha + 5, 255);
             fill(34, 57, 34, fadeAlpha);
-            rect(50, 50, width - 100, height - 100, 20);
+            rect(tileSize * 1.25, tileSize * 1.25, canvasSize - tileSize * 2.5, canvasSize - tileSize * 2.5, 20);
             fill(119, 255, 119);
-            textSize(18);
+            textSize(tileSize * 0.45);
             textAlign(CENTER, CENTER);
-            text('Victory! T-Man triumphs over the Tech Giants, freeing the digital world. Users celebrate, and T-Man dances under a starry sky. Play again?', 50, 50, width - 100, height - 100);
-            let bx = width / 2 - 100;
-            let by = height - 120;
-            let hover = mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70;
+            text('Victory! T-Man triumphs over the Tech Giants, freeing the digital world. Users celebrate, and T-Man dances under a starry sky. Play again?', tileSize * 1.25, tileSize * 1.25, canvasSize - tileSize * 2.5, canvasSize - tileSize * 2.5);
+            let bx = canvasSize / 2 - tileSize * 2.5;
+            let by = canvasSize - tileSize * 3;
+            let hover = mouseX > bx && mouseX < bx + tileSize * 5 && mouseY > by && mouseY < by + tileSize * 1.75;
             fill(hover ? color(0, 255, 128, 220) : color(0, 255, 128));
-            rect(bx, by, 200, 70, 10);
+            rect(bx, by, tileSize * 5, tileSize * 1.75, 10);
             fill(255, 255, 255, 100);
-            textSize(20);
-            text('Restart', width / 2 + 2, by + 37);
+            textSize(tileSize * 0.5);
+            text('Restart', canvasSize / 2 + 2, by + tileSize * 0.925);
             fill(34, 57, 34);
-            text('Restart', width / 2, by + 35);
+            text('Restart', canvasSize / 2, by + tileSize * 0.875);
             fill(255, 255, 255, 100);
-            textSize(14);
-            text('Tap screen or press ENTER', width / 2 + 2, by + 57);
+            textSize(tileSize * 0.35);
+            text('Tap screen or press ENTER', canvasSize / 2 + 2, by + tileSize * 1.425);
             fill(34, 57, 34);
-            text('Tap screen or press ENTER', width / 2, by + 55);
+            text('Tap screen or press ENTER', canvasSize / 2, by + tileSize * 1.375);
             noLoop();
           }
 
@@ -886,16 +905,16 @@
             return false;
           }
           if (gameState === 'gameover') {
-            let bx = width / 2 - 100;
-            let by = height / 2 + 20;
-            if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+            let bx = canvasSize / 2 - tileSize * 2.5;
+            let by = canvasSize / 2 + tileSize * 0.5;
+            if (touches[0].x > bx && touches[0].x < bx + tileSize * 5 && touches[0].y > by && touches[0].y < by + tileSize * 1.75) {
               restartGame();
               return false;
             }
           } else if (gameState === 'victory') {
-            let bx = width / 2 - 100;
-            let by = height - 120;
-            if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+            let bx = canvasSize / 2 - tileSize * 2.5;
+            let by = canvasSize - tileSize * 3;
+            if (touches[0].x > bx && touches[0].x < bx + tileSize * 5 && touches[0].y > by && touches[0].y < by + tileSize * 1.75) {
               restartGame();
               return false;
             }
@@ -949,15 +968,15 @@
             return false;
           }
           if (gameState === 'gameover') {
-            let bx = width / 2 - 100;
-            let by = height / 2 + 20;
-            if (mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70) {
+            let bx = canvasSize / 2 - tileSize * 2.5;
+            let by = canvasSize / 2 + tileSize * 0.5;
+            if (mouseX > bx && mouseX < bx + tileSize * 5 && mouseY > by && mouseY < by + tileSize * 1.75) {
               restartGame();
             }
           } else if (gameState === 'victory') {
-            let bx = width / 2 - 100;
-            let by = height - 120;
-            if (mouseX > bx && mouseX < bx + 200 && mouseY > by && mouseY < by + 70) {
+            let bx = canvasSize / 2 - tileSize * 2.5;
+            let by = canvasSize - tileSize * 3;
+            if (mouseX > bx && mouseX < bx + tileSize * 5 && mouseY > by && mouseY < by + tileSize * 1.75) {
               restartGame();
             }
           }
@@ -965,7 +984,7 @@
 
         function restartGame() {
           level = 1;
-          gameState = 'start'; // Return to start screen instead of tutorial
+          gameState = 'start';
           storyState = 'tutorial';
           storyIndex = 0;
           bombs = [];
@@ -980,7 +999,6 @@
           isJoystickActive = false;
           lastJoystickMoveTime = 0;
           loop();
-          // Note: setup() is not called here to avoid initializing the game grid on restart screen
         }
       </script>
     </div>
