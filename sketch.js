@@ -35,14 +35,7 @@ const stories = [
 
 function debug(msg) {
   console.log(msg);
-  fill(255, 255, 0);
-  textSize(14);
-  textAlign(LEFT, TOP);
-  text(msg, 10, 10 + textAscent() * debug.messages.length);
-  debug.messages.push(msg);
-  if (debug.messages.length > 10) debug.messages.shift();
 }
-debug.messages = [];
 
 class Particle {
   constructor(x, y, vx, vy, color) {
@@ -316,7 +309,7 @@ class Enemy {
       for (let i = 0; i < 2; i++) {
         for (let j = 0; j < 2; j++) {
           fill(colors[i * 2 + j]);
-          ellipse(- Mogile / 4 + i * tileSize / 4, -tileSize / 4 + j * tileSize / 4, tileSize / 8);
+          ellipse(-tileSize / 4 + i * tileSize / 4, -tileSize / 4 + j * tileSize / 4, tileSize / 8);
         }
       }
     } else if (this.type === 'Apple') {
@@ -655,7 +648,7 @@ function draw() {
   debug('Drawing frame...');
 
   if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
-    fadeAlpha = min(fadeAlpha + 5, 255);
+    fadeAlpha = min(fadeAlpha + 5, 200);
     fill(34, 57, 34, fadeAlpha);
     rect(50, 50, width - 100, height - 100, 20);
     fill(119, 136, 119);
@@ -770,7 +763,7 @@ function draw() {
   }
 
   if (gameState === 'gameover') {
-    fadeAlpha = min(fadeAlpha + 5, 255);
+    fadeAlpha = min(fadeAlpha + 5, 200);
     fill(0, 0, 0, fadeAlpha);
     rect(0, 0, width, height);
     fill(0, 255, 128);
@@ -792,11 +785,10 @@ function draw() {
     text('Press ENTER', width / 2 + 2, by + 57);
     fill(34, 57, 34);
     text('Press ENTER', width / 2, by + 55);
-    noLoop();
   }
 
   if (gameState === 'victory') {
-    fadeAlpha = min(fadeAlpha + 5, 255);
+    fadeAlpha = min(fadeAlpha + 5, 200);
     fill(0, 0, 0, fadeAlpha);
     rect(50, 50, width - 100, height - 100, 20);
     fill(119, 255, 119);
@@ -818,7 +810,6 @@ function draw() {
     text('Press ENTER', width / 2 + 2, by + 57);
     fill(34, 57, 34);
     text('Press ENTER', width / 2, by + 55);
-    noLoop();
   }
 
   // Kompakter Infotext
@@ -892,13 +883,13 @@ function touchStarted() {
     if (gameState === 'gameover') {
       let bx = width / 2 - 100;
       let by = height / 2 + 20;
-      if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+      if (touches.length > 0 && touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
         restartGame();
       }
     } else if (gameState === 'victory') {
       let bx = width / 2 - 100;
       let by = height - 120;
-      if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+      if (touches.length > 0 && touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
         restartGame();
       }
     }
