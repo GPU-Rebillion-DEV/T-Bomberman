@@ -11,7 +11,8 @@
       color: #e0f7fa;
       font-family: 'Arial', sans-serif;
       margin: 0;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
     canvas {
       border: 2px solid #00ff80;
@@ -23,31 +24,61 @@
     #game-container {
       position: relative;
       width: 100vw;
-      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      padding-top: 8rem;
+      padding-bottom: 4rem;
     }
     #ui-container {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
-      height: 100%;
       pointer-events: none;
     }
     #ui-container > * {
       pointer-events: auto;
     }
+    #controller {
+      display: none;
+    }
     #fullscreen-btn {
       margin-top: 1rem;
     }
     @media (max-width: 640px) {
-      header, footer, #instructions {
-        display: none;
+      header, #instructions {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      footer {
+        padding-bottom: 8rem;
       }
       #fullscreen-btn {
         display: none;
+      }
+      #controller {
+        display: flex;
+        justify-content: center;
+        position: absolute;
+        bottom: 1rem;
+        width: 100%;
+      }
+      .controller-btn {
+        width: 3rem;
+        height: 3rem;
+        margin: 0.5rem;
+        border-radius: 0.5rem;
+        background-color: #00ff80;
+        color: #1a2521;
+        font-size: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .controller-btn:active {
+        background-color: #00cc66;
       }
     }
     @media (min-width: 641px) {
@@ -59,6 +90,17 @@
   </style>
 </head>
 <body>
+  <div id="ui-container">
+    <header class="w-full text-center py-4">
+      <h1 class="text-2xl md:text-4xl font-bold text-[#00ff80] mb-2">T-Man's Quest</h1>
+      <p class="text-sm md:text-lg text-gray-300 max-w-4xl mx-auto">Join T-Man in his epic battle against the Tech Giants! Navigate mazes, place bombs, and collect power-ups.</p>
+    </header>
+    <main class="w-full text-center flex flex-col items-center">
+      <div id="instructions" class="text-gray-400 text-sm md:text-base max-w-4xl mx-auto">
+        <p>Use arrow keys (desktop) or controller buttons (mobile) to move T-Man. Press spacebar or bomb button to place bombs. Collect power-ups to enhance abilities!</p>
+      </div>
+    </main>
+  </div>
   <div id="game-container">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
     <script>
@@ -83,13 +125,11 @@
       let playerSpeed = 0.7;
       let bombRange = 2;
       let fadeAlpha = 0;
-      let bombButton = null;
-      let touchActive = false;
       let lastMoveTime = 0;
       let moveCooldown = 200;
 
       const stories = [
-        { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (desktop) or tap the screen edges (mobile) to move, place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
+        { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (desktop) or controller buttons (mobile) to move, place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
         { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nTap screen or press ENTER to start." },
         { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nTap screen or press ENTER to continue." },
         { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nTap screen or press ENTER to continue." },
@@ -216,30 +256,6 @@
             this.x = newX;
             this.y = newY;
           }
-        }
-      }
-
-      class Button {
-        constructor(x, y, size) {
-          this.x = x;
-          this.y = y;
-          this.size = size;
-          this.active = false;
-        }
-
-        draw() {
-          fill(this.active ? color(0, 255, 128, 220) : color(119, 136, 119, 150));
-          ellipse(this.x, this.y, this.size);
-          fill(34, 57, 34);
-          textAlign(CENTER, CENTER);
-          textSize(this.size * 0.33);
-          text("B", this.x, this.y);
-        }
-
-        isTouched(touchX, touchY) {
-          let dx = touchX - this.x;
-          let dy = touchY - this.y;
-          return sqrt(dx * dx + dy * dy) < this.size / 2;
         }
       }
 
@@ -592,7 +608,7 @@
         playerSpeed = 0.7;
         bombRange = 2;
         fadeAlpha = 0;
-        bombButton = new Button(canvasSize - tileSize * 1.5, canvasSize - tileSize * 1.5, tileSize * 1.5);
+        lastMoveTime = 0;
       }
 
       function windowResized() {
@@ -600,7 +616,6 @@
         canvasSize = Math.floor(canvasSize / gridSize) * gridSize;
         tileSize = canvasSize / gridSize;
         resizeCanvas(canvasSize, canvasSize);
-        bombButton = new Button(canvasSize - tileSize * 1.5, canvasSize - tileSize * 1.5, tileSize * 1.5);
       }
 
       function draw() {
@@ -793,10 +808,6 @@
           text('Tap screen or press ENTER', canvasSize / 2, by + tileSize * 1.375);
           noLoop();
         }
-
-        if (touches.length > 0 || touchActive) {
-          bombButton.draw();
-        }
       }
 
       function keyPressed() {
@@ -870,37 +881,7 @@
             return false;
           }
         }
-        if (gameState !== 'playing') return false;
-        if (touches.length > 0) {
-          let touchX = touches[0].x;
-          let touchY = touches[0].y;
-          if (bombButton.isTouched(touchX, touchY)) {
-            bombButton.active = true;
-            if (millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
-              bombs.push(new Bomb(player.x, player.y));
-              lastBombTime = millis();
-            }
-          } else if (millis() - lastMoveTime > moveCooldown / playerSpeed) {
-            touchActive = true;
-            let centerX = canvasSize / 2;
-            let centerY = canvasSize / 2;
-            let dx = touchX - centerX;
-            let dy = touchY - centerY;
-            if (Math.abs(dx) > Math.abs(dy)) {
-              player.moveOnce(dx > 0 ? 1 : -1, 0);
-            } else {
-              player.moveOnce(0, dy > 0 ? 1 : -1);
-            }
-            lastMoveTime = millis();
-          }
-        }
         return false;
-      }
-
-      function touchEnded() {
-        if (gameState !== 'playing') return false;
-        bombButton.active = false;
-        touchActive = false;
       }
 
       function mousePressed() {
@@ -946,7 +927,6 @@
         playerSpeed = 0.7;
         bombRange = 2;
         fadeAlpha = 0;
-        touchActive = false;
         lastMoveTime = 0;
         loop();
       }
@@ -960,22 +940,47 @@
           document.exitFullscreen();
         }
       }
+
+      function handleController(direction) {
+        if (gameState !== 'playing' || !player) return;
+        if (millis() - lastMoveTime > moveCooldown / playerSpeed) {
+          if (direction === 'up') player.moveOnce(0, -1);
+          else if (direction === 'down') player.moveOnce(0, 1);
+          else if (direction === 'left') player.moveOnce(-1, 0);
+          else if (direction === 'right') player.moveOnce(1, 0);
+          lastMoveTime = millis();
+        }
+      }
+
+      function placeBomb() {
+        if (gameState !== 'playing') return;
+        if (millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
+          bombs.push(new Bomb(player.x, player.y));
+          lastBombTime = millis();
+        }
+      }
     </script>
   </div>
   <div id="ui-container">
-    <header class="w-full max-w-4xl text-center py-4">
-      <h1 class="text-2xl md:text-4xl font-bold text-[#00ff80] mb-2">T-Man's Quest</h1>
-      <p class="text-sm md:text-lg text-gray-300">Join T-Man in his epic battle against the Tech Giants! Navigate mazes, place bombs, and collect power-ups.</p>
-    </header>
-    <main class="w-full max-w-[90%] px-4 text-center flex flex-col items-center">
-      <div id="instructions" class="mt-2 text-gray-400 text-sm md:text-base">
-        <p>Use arrow keys (desktop) or tap screen edges (mobile) to move T-Man. Press spacebar or bomb button to place bombs. Collect power-ups to enhance abilities!</p>
-      </div>
+    <main class="w-full text-center flex flex-col items-center">
       <button id="fullscreen-btn" class="bg-[#00ff80] text-[#1a2521] px-3 py-1 rounded-lg text-sm md:text-base hover:bg-[#00cc66] transition">Fullscreen</button>
     </main>
-    <footer class="w-full max-w-4xl text-center py-4 absolute bottom-0">
+    <footer class="w-full text-center py-4 absolute bottom-0">
       <p class="text-gray-500 text-sm">Created by GPU-Rebellion</p>
     </footer>
+    <div id="controller" class="flex flex-col items-center">
+      <div class="flex justify-center">
+        <button class="controller-btn" onclick="handleController('up')">↑</button>
+      </div>
+      <div class="flex justify-center">
+        <button class="controller-btn" onclick="handleController('left')">←</button>
+        <button class="controller-btn" onclick="placeBomb()">B</button>
+        <button class="controller-btn" onclick="handleController('right')">→</button>
+      </div>
+      <div class="flex justify-center">
+        <button class="controller-btn" onclick="handleController('down')">↓</button>
+      </div>
+    </div>
   </div>
   <script>
     document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
