@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+<body>
+<script>
 let tileSize = 40;
 let gridSize = 15;
 let grid = [];
@@ -24,18 +31,25 @@ let touchActive = false;
 let isJoystickActive = false;
 
 const stories = [
-  { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (one tap per move) or joystick (touchscreen), place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases joystick movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nPress ENTER to continue." },
-  { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nPress ENTER to start." },
-  { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nPress ENTER to continue." },
-  { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nPress ENTER to continue." },
-  { level: 41, text: "The Tech Giants strike back in the Algorithm Jungle! Their minions dodge T-Man’s bombs, weaving through dense mazes. T-Man learns their tricks, planting clever traps to outsmart them.\n\nPress ENTER to continue." },
-  { level: 61, text: "T-Man rallies a digital rebellion in the Server Highlands! The Tech Giants unleash their ultimate weapon: bomb-dropping drones. T-Man fights fire with fire, determined to break their control.\n\nPress ENTER to continue." },
-  { level: 95, text: "In the heart of the Tech Titans, T-Man faces the Tech Giants’ final stand. Hordes swarm, but T-Man’s resolve shines brighter. Can he topple the monopolies and restore balance to the digital realm?\n\nPress ENTER to continue." }
+  { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (one tap per move) or joystick (touchscreen), place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases joystick movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
+  { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nTap screen or press ENTER to start." },
+  { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nTap screen or press ENTER to continue." },
+  { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nTap screen or press ENTER to continue." },
+  { level: 41, text: "The Tech Giants strike back in the Algorithm Jungle! Their minions dodge T-Man’s bombs, weaving through dense mazes. T-Man learns their tricks, planting clever traps to outsmart them.\n\nTap screen or press ENTER to continue." },
+  { level: 61, text: "T-Man rallies a digital rebellion in the Server Highlands! The Tech Giants unleash their ultimate weapon: bomb-dropping drones. T-Man fights fire with fire, determined to break their control.\n\nTap screen or press ENTER to continue." },
+  { level: 95, text: "In the heart of the Tech Titans, T-Man faces the Tech Giants’ final stand. Hordes swarm, but T-Man’s resolve shines brighter. Can he topple the monopolies and restore balance to the digital realm?\n\nTap screen or press ENTER to continue." }
 ];
 
 function debug(msg) {
   console.log(msg);
+  fill(255, 255, 0);
+  textSize(14);
+  textAlign(LEFT, TOP);
+  text(msg, 10, 10 + textAscent() * debug.messages.length);
+  debug.messages.push(msg);
+  if (debug.messages.length > 10) debug.messages.shift();
 }
+debug.messages = [];
 
 class Particle {
   constructor(x, y, vx, vy, color) {
@@ -172,7 +186,7 @@ class Player {
   move() {
     if (!this.moveDirection) return;
     let moveStep = playerSpeed * 0.1;
-    this.anim += moveStep; // Animationsfortschritt für Joystick
+    this.anim += moveStep;
     let newX = this.x + this.moveDirection.dx;
     let newY = this.y + this.moveDirection.dy;
     if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize && grid[newY][newX] === 0) {
@@ -648,7 +662,7 @@ function draw() {
   debug('Drawing frame...');
 
   if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
-    fadeAlpha = min(fadeAlpha + 5, 200);
+    fadeAlpha = min(fadeAlpha + 5, 255);
     fill(34, 57, 34, fadeAlpha);
     rect(50, 50, width - 100, height - 100, 20);
     fill(119, 136, 119);
@@ -763,10 +777,10 @@ function draw() {
   }
 
   if (gameState === 'gameover') {
-    fadeAlpha = min(fadeAlpha + 5, 200);
-    fill(0, 0, 0, fadeAlpha);
-    rect(0, 0, width, height);
-    fill(0, 255, 128);
+    fadeAlpha = min(fadeAlpha + 5, 255);
+    fill(34, 57, 34, fadeAlpha);
+    rect(50, 50, width - 100, height - 100, 20);
+    fill(119, 255, 119);
     textSize(48);
     textAlign(CENTER, CENTER);
     text('Game Over', width / 2, height / 2 - 50);
@@ -782,14 +796,15 @@ function draw() {
     text('Restart', width / 2, by + 35);
     fill(255, 255, 255, 100);
     textSize(14);
-    text('Press ENTER', width / 2 + 2, by + 57);
+    text('Tap screen or press ENTER', width / 2 + 2, by + 57);
     fill(34, 57, 34);
-    text('Press ENTER', width / 2, by + 55);
+    text('Tap screen or press ENTER', width / 2, by + 55);
+    noLoop();
   }
 
   if (gameState === 'victory') {
-    fadeAlpha = min(fadeAlpha + 5, 200);
-    fill(0, 0, 0, fadeAlpha);
+    fadeAlpha = min(fadeAlpha + 5, 255);
+    fill(34, 57, 34, fadeAlpha);
     rect(50, 50, width - 100, height - 100, 20);
     fill(119, 255, 119);
     textSize(18);
@@ -807,28 +822,39 @@ function draw() {
     text('Restart', width / 2, by + 35);
     fill(255, 255, 255, 100);
     textSize(14);
-    text('Press ENTER', width / 2 + 2, by + 57);
+    text('Tap screen or press ENTER', width / 2 + 2, by + 57);
     fill(34, 57, 34);
-    text('Press ENTER', width / 2, by + 55);
+    text('Tap screen or press ENTER', width / 2, by + 55);
+    noLoop();
   }
 
-  // Kompakter Infotext
-  fill(34, 57, 34, 200);
-  stroke(119, 255, 119);
-  strokeWeight(1);
-  rect(width - 150, 10, 140, 100, 10);
+  // Verbesserte Infobox
+  fill(34, 57, 34, 220);
+  stroke(0, 255, 128, 200);
+  strokeWeight(2);
+  rect(width - 160, 10, 150, 110, 15);
+  fill(0, 0, 0, 100);
+  rect(width - 158, 12, 146, 106, 13);
   noStroke();
+  fill(0, 255, 128, 220);
+  rect(width - 158, 12, 146, 25, 13, 13, 0, 0);
+  fill(34, 57, 34);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  text('T-Man Stats', width - 85, 25);
   fill(119, 255, 119);
   textSize(14);
   textAlign(LEFT, TOP);
-  text('Level: ' + level, width - 140, 20);
-  text('Move: Arrow Keys (Tap)', width - 140, 35);
-  text('Bomb: Space', width - 140, 50);
-  text('Bombs: ' + maxBombs, width - 140, 65);
-  text('Speed: ' + playerSpeed.toFixed(1), width - 140, 80);
-  text('Range: ' + bombRange, width - 140, 95);
+  text('Level: ' + level, width - 150, 45);
+  text('Bombs: ' + maxBombs, width - 150, 65);
+  text('Speed: ' + playerSpeed.toFixed(1), width - 150, 85);
+  text('Range: ' + bombRange, width - 150, 105);
+  if (touches.length > 0) {
+    fill(255, 255, 255, 150);
+    textSize(12);
+    text('Tap: Move | B: Bomb', width - 150, 10);
+  }
 
-  // Touch-Steuerung rendern
   if (touches.length > 0 || touchActive) {
     joystick.draw();
     bombButton.draw();
@@ -836,20 +862,13 @@ function draw() {
 }
 
 function keyPressed() {
-  if (storyState === 'tutorial') {
-    if (keyCode === ENTER) {
-      storyState = 'intro';
-      storyIndex = 1;
-      return;
-    }
-    return false;
-  }
-  if (storyState === 'intro' || storyState === 'level1complete') {
+  if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
     if (keyCode === ENTER) {
       storyState = 'playing';
       gameState = 'playing';
       setup();
-      return;
+      loop();
+      return false;
     }
     return false;
   }
@@ -879,22 +898,29 @@ function keyReleased() {
 }
 
 function touchStarted() {
-  if (gameState !== 'playing') {
-    if (gameState === 'gameover') {
-      let bx = width / 2 - 100;
-      let by = height / 2 + 20;
-      if (touches.length > 0 && touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
-        restartGame();
-      }
-    } else if (gameState === 'victory') {
-      let bx = width / 2 - 100;
-      let by = height - 120;
-      if (touches.length > 0 && touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
-        restartGame();
-      }
-    }
+  if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
+    storyState = 'playing';
+    gameState = 'playing';
+    setup();
+    loop();
     return false;
   }
+  if (gameState === 'gameover') {
+    let bx = width / 2 - 100;
+    let by = height / 2 + 20;
+    if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+      restartGame();
+      return false;
+    }
+  } else if (gameState === 'victory') {
+    let bx = width / 2 - 100;
+    let by = height - 120;
+    if (touches[0].x > bx && touches[0].x < bx + 200 && touches[0].y > by && touches[0].y < by + 70) {
+      restartGame();
+      return false;
+    }
+  }
+  if (gameState !== 'playing') return false;
   if (touches.length > 0) {
     let touchX = touches[0].x;
     let touchY = touches[0].y;
@@ -930,6 +956,13 @@ function touchEnded() {
 }
 
 function mousePressed() {
+  if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
+    storyState = 'playing';
+    gameState = 'playing';
+    setup();
+    loop();
+    return false;
+  }
   if (gameState === 'gameover') {
     let bx = width / 2 - 100;
     let by = height / 2 + 20;
@@ -964,3 +997,6 @@ function restartGame() {
   setup();
   debug('Game restarted');
 }
+</script>
+</body>
+</html>
