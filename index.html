@@ -21,9 +21,7 @@
       max-height: 100vh;
     }
     #game-container {
-      position: fixed;
-      top: 0;
-      left: 0;
+      position: relative;
       width: 100vw;
       height: 100vh;
       display: flex;
@@ -41,21 +39,21 @@
     #ui-container > * {
       pointer-events: auto;
     }
-    #toggle-ui {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      z-index: 10;
+    #fullscreen-btn {
+      margin-top: 1rem;
     }
     @media (max-width: 640px) {
-      header, footer {
+      header, footer, #instructions {
         display: none;
       }
-      header.active, footer.active {
-        display: block;
+      #fullscreen-btn {
+        display: none;
       }
-      #toggle-ui {
-        font-size: 0.75rem;
+    }
+    @media (min-width: 641px) {
+      canvas {
+        width: 80vmin;
+        height: 80vmin;
       }
     }
   </style>
@@ -85,15 +83,13 @@
       let playerSpeed = 0.7;
       let bombRange = 2;
       let fadeAlpha = 0;
-      let joystick = null;
       let bombButton = null;
       let touchActive = false;
-      let isJoystickActive = false;
-      let lastJoystickMoveTime = 0;
-      let joystickMoveCooldown = 200;
+      let lastMoveTime = 0;
+      let moveCooldown = 200;
 
       const stories = [
-        { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (one tap per move) or joystick (touchscreen), place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
+        { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (desktop) or tap the screen edges (mobile) to move, place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
         { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nTap screen or press ENTER to start." },
         { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nTap screen or press ENTER to continue." },
         { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nTap screen or press ENTER to continue." },
@@ -220,74 +216,6 @@
             this.x = newX;
             this.y = newY;
           }
-        }
-
-        moveJoystick(dx, dy) {
-          if (millis() - lastJoystickMoveTime < joystickMoveCooldown / playerSpeed) return;
-          let newX = this.x + dx;
-          let newY = this.y + dy;
-          if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize && grid[newY][newX] === 0) {
-            if (enemies.some(enemy => enemy.x === newX && enemy.y === newY)) {
-              gameState = 'gameover';
-              return;
-            }
-            if (bombs.some(b => b.x === newX && b.y === newY)) {
-              return;
-            }
-            this.x = newX;
-            this.y = newY;
-            lastJoystickMoveTime = millis();
-          }
-        }
-      }
-
-      class Joystick {
-        constructor(x, y, radius) {
-          this.baseX = x;
-          this.baseY = y;
-          this.radius = radius;
-          this.knobX = x;
-          this.knobY = y;
-          this.active = false;
-        }
-
-        update(touchX, touchY) {
-          if (this.active) {
-            let dx = touchX - this.baseX;
-            let dy = touchY - this.baseY;
-            let dist = sqrt(dx * dx + dy * dy);
-            if (dist > this.radius) {
-              dx = (dx / dist) * this.radius;
-              dy = (dy / dist) * this.radius;
-            }
-            this.knobX = this.baseX + dx;
-            this.knobY = this.baseY + dy;
-            let moveX = dx / this.radius;
-            let moveY = dy / this.radius;
-            if (player && (abs(moveX) > 0.3 || abs(moveY) > 0.3)) {
-              isJoystickActive = true;
-              if (abs(moveX) > abs(moveY)) {
-                player.moveJoystick(moveX > 0 ? 1 : -1, 0);
-              } else {
-                player.moveJoystick(0, moveY > 0 ? 1 : -1);
-              }
-            } else {
-              isJoystickActive = false;
-            }
-          }
-        }
-
-        draw() {
-          fill(119, 136, 119, 150);
-          ellipse(this.baseX, this.baseY, this.radius * 2);
-          fill(0, 255, 128, 200);
-          ellipse(this.knobX, this.knobY, this.radius * 0.8);
-        }
-
-        isTouched(touchX, touchY) {
-          let dx = touchX - this.baseX;
-          let dy = touchY - this.baseY;
-          return sqrt(dx * dx + dy * dy) < this.radius;
         }
       }
 
@@ -622,7 +550,7 @@
       }
 
       function setup() {
-        canvasSize = Math.min(window.innerWidth, window.innerHeight);
+        canvasSize = Math.min(window.innerWidth, window.innerHeight) * (window.innerWidth > 640 ? 0.8 : 1.0);
         canvasSize = Math.floor(canvasSize / gridSize) * gridSize;
         tileSize = canvasSize / gridSize;
         createCanvas(canvasSize, canvasSize);
@@ -664,17 +592,15 @@
         playerSpeed = 0.7;
         bombRange = 2;
         fadeAlpha = 0;
-        joystick = new Joystick(tileSize * 1.5, canvasSize - tileSize * 2, tileSize * 1.25);
-        bombButton = new Button(canvasSize - tileSize * 1.5, canvasSize - tileSize * 2, tileSize * 1.5);
+        bombButton = new Button(canvasSize - tileSize * 1.5, canvasSize - tileSize * 1.5, tileSize * 1.5);
       }
 
       function windowResized() {
-        canvasSize = Math.min(window.innerWidth, window.innerHeight);
+        canvasSize = Math.min(window.innerWidth, window.innerHeight) * (window.innerWidth > 640 ? 0.8 : 1.0);
         canvasSize = Math.floor(canvasSize / gridSize) * gridSize;
         tileSize = canvasSize / gridSize;
         resizeCanvas(canvasSize, canvasSize);
-        joystick = new Joystick(tileSize * 1.5, canvasSize - tileSize * 2, tileSize * 1.25);
-        bombButton = new Button(canvasSize - tileSize * 1.5, canvasSize - tileSize * 2, tileSize * 1.5);
+        bombButton = new Button(canvasSize - tileSize * 1.5, canvasSize - tileSize * 1.5, tileSize * 1.5);
       }
 
       function draw() {
@@ -869,7 +795,6 @@
         }
 
         if (touches.length > 0 || touchActive) {
-          joystick.draw();
           bombButton.draw();
         }
       }
@@ -915,10 +840,6 @@
         return false;
       }
 
-      function keyReleased() {
-        if (gameState !== 'playing' || !player) return;
-      }
-
       function touchStarted() {
         if (gameState === 'start') {
           gameState = 'playing';
@@ -953,33 +874,33 @@
         if (touches.length > 0) {
           let touchX = touches[0].x;
           let touchY = touches[0].y;
-          if (joystick.isTouched(touchX, touchY)) {
-            joystick.active = true;
-            touchActive = true;
-          } else if (bombButton.isTouched(touchX, touchY)) {
+          if (bombButton.isTouched(touchX, touchY)) {
             bombButton.active = true;
             if (millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
               bombs.push(new Bomb(player.x, player.y));
               lastBombTime = millis();
             }
+          } else if (millis() - lastMoveTime > moveCooldown / playerSpeed) {
+            touchActive = true;
+            let centerX = canvasSize / 2;
+            let centerY = canvasSize / 2;
+            let dx = touchX - centerX;
+            let dy = touchY - centerY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+              player.moveOnce(dx > 0 ? 1 : -1, 0);
+            } else {
+              player.moveOnce(0, dy > 0 ? 1 : -1);
+            }
+            lastMoveTime = millis();
           }
-        }
-        return false;
-      }
-
-      function touchMoved() {
-        if (gameState !== 'playing') return false;
-        if (touches.length > 0 && joystick.active) {
-          joystick.update(touches[0].x, touches[0].y);
         }
         return false;
       }
 
       function touchEnded() {
         if (gameState !== 'playing') return false;
-        joystick.active = false;
         bombButton.active = false;
-        isJoystickActive = false;
+        touchActive = false;
       }
 
       function mousePressed() {
@@ -1026,8 +947,7 @@
         bombRange = 2;
         fadeAlpha = 0;
         touchActive = false;
-        isJoystickActive = false;
-        lastJoystickMoveTime = 0;
+        lastMoveTime = 0;
         loop();
       }
 
@@ -1047,29 +967,18 @@
       <h1 class="text-2xl md:text-4xl font-bold text-[#00ff80] mb-2">T-Man's Quest</h1>
       <p class="text-sm md:text-lg text-gray-300">Join T-Man in his epic battle against the Tech Giants! Navigate mazes, place bombs, and collect power-ups.</p>
     </header>
-    <main class="w-full max-w-[90%] px-4 text-center">
-      <div class="mt-2 text-gray-400 text-sm md:text-base">
-        <p>Use arrow keys or joystick (touchscreen) to move T-Man. Press spacebar or bomb button to place bombs. Collect power-ups to enhance abilities!</p>
+    <main class="w-full max-w-[90%] px-4 text-center flex flex-col items-center">
+      <div id="instructions" class="mt-2 text-gray-400 text-sm md:text-base">
+        <p>Use arrow keys (desktop) or tap screen edges (mobile) to move T-Man. Press spacebar or bomb button to place bombs. Collect power-ups to enhance abilities!</p>
       </div>
+      <button id="fullscreen-btn" class="bg-[#00ff80] text-[#1a2521] px-3 py-1 rounded-lg text-sm md:text-base hover:bg-[#00cc66] transition">Fullscreen</button>
     </main>
     <footer class="w-full max-w-4xl text-center py-4 absolute bottom-0">
       <p class="text-gray-500 text-sm">Created by GPU-Rebellion</p>
     </footer>
-    <button id="toggle-ui" class="bg-[#00ff80] text-[#1a2521] px-3 py-1 rounded-lg text-sm md:text-base hover:bg-[#00cc66] transition">Toggle UI</button>
-    <button id="fullscreen-btn" class="bg-[#00ff80] text-[#1a2521] px-3 py-1 rounded-lg text-sm md:text-base hover:bg-[#00cc66] transition absolute top-10 right-10">Fullscreen</button>
   </div>
   <script>
-    document.getElementById('toggle-ui').addEventListener('click', () => {
-      const header = document.querySelector('header');
-      const footer = document.querySelector('footer');
-      const main = document.querySelector('main');
-      header.classList.toggle('active');
-      footer.classList.toggle('active');
-      main.classList.toggle('active');
-    });
-
     document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
-
     document.addEventListener('fullscreenchange', () => {
       windowResized();
     });
