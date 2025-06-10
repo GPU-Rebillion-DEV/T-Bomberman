@@ -29,9 +29,11 @@ let joystick = null;
 let bombButton = null;
 let touchActive = false;
 let isJoystickActive = false;
+let lastJoystickMoveTime = 0;
+let joystickMoveCooldown = 200; // Cooldown in ms für Touchscreen-Bewegung
 
 const stories = [
-  { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (one tap per move) or joystick (touchscreen), place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases joystick movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
+  { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (one tap per move) or joystick (touchscreen), place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
   { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nTap screen or press ENTER to start." },
   { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nTap screen or press ENTER to continue." },
   { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nTap screen or press ENTER to continue." },
@@ -39,17 +41,6 @@ const stories = [
   { level: 61, text: "T-Man rallies a digital rebellion in the Server Highlands! The Tech Giants unleash their ultimate weapon: bomb-dropping drones. T-Man fights fire with fire, determined to break their control.\n\nTap screen or press ENTER to continue." },
   { level: 95, text: "In the heart of the Tech Titans, T-Man faces the Tech Giants’ final stand. Hordes swarm, but T-Man’s resolve shines brighter. Can he topple the monopolies and restore balance to the digital realm?\n\nTap screen or press ENTER to continue." }
 ];
-
-function debug(msg) {
-  console.log(msg);
-  fill(255, 255, 0);
-  textSize(14);
-  textAlign(LEFT, TOP);
-  text(msg, 10, 10 + textAscent() * debug.messages.length);
-  debug.messages.push(msg);
-  if (debug.messages.length > 10) debug.messages.shift();
-}
-debug.messages = [];
 
 class Particle {
   constructor(x, y, vx, vy, color) {
@@ -114,7 +105,6 @@ class PowerUp {
     fill(255, 255, 255, 220);
     text(symbol, 0, 0);
     pop();
-    debug('PowerUp ' + this.type + ' drawn at ' + this.x + ',' + this.y);
   }
 
   update() {
@@ -123,13 +113,10 @@ class PowerUp {
     if (player && player.x === this.x && player.y === this.y) {
       if (this.type === 'extraBomb') {
         maxBombs++;
-        debug('Collected Extra Bomb: maxBombs = ' + maxBombs);
       } else if (this.type === 'speedBoost') {
         playerSpeed += 0.5;
-        debug('Collected Speed Boost: playerSpeed = ' + playerSpeed);
       } else {
         bombRange++;
-        debug('Collected Range Boost: bombRange = ' + bombRange);
       }
       return false;
     }
@@ -157,7 +144,6 @@ class Player {
     fill(255, 255, 255, 200);
     ellipse(0, -tileSize / 3, 12, 12);
     pop();
-    debug('Player drawn at ' + this.x + ',' + this.y);
   }
 
   moveOnce(dx, dy) {
@@ -166,41 +152,31 @@ class Player {
     if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize && grid[newY][newX] === 0) {
       if (enemies.some(enemy => enemy.x === newX && enemy.y === newY)) {
         gameState = 'gameover';
-        debug('Player killed by enemy collision at ' + newX + ',' + newY);
         return;
       }
       if (bombs.some(b => b.x === newX && b.y === newY)) {
-        debug('Movement blocked by bomb at ' + newX + ',' + newY);
         return;
       }
       this.x = newX;
       this.y = newY;
-      debug('Player moved to ' + this.x + ',' + this.y);
     }
   }
 
-  setDirection(dx, dy) {
-    this.moveDirection = { dx, dy };
-  }
-
-  move() {
-    if (!this.moveDirection) return;
-    let moveStep = playerSpeed * 0.1;
-    this.anim += moveStep;
-    let newX = this.x + this.moveDirection.dx;
-    let newY = this.y + this.moveDirection.dy;
+  moveJoystick(dx, dy) {
+    if (millis() - lastJoystickMoveTime < joystickMoveCooldown / playerSpeed) return;
+    let newX = this.x + dx;
+    let newY = this.y + dy;
     if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize && grid[newY][newX] === 0) {
       if (enemies.some(enemy => enemy.x === newX && enemy.y === newY)) {
         gameState = 'gameover';
-        debug('Player killed by enemy collision at ' + newX + ',' + newY);
         return;
       }
       if (bombs.some(b => b.x === newX && b.y === newY)) {
-        debug('Movement blocked by bomb at ' + newX + ',' + newY);
         return;
       }
       this.x = newX;
       this.y = newY;
+      lastJoystickMoveTime = millis();
     }
   }
 }
@@ -231,13 +207,12 @@ class Joystick {
       if (player && (abs(moveX) > 0.3 || abs(moveY) > 0.3)) {
         isJoystickActive = true;
         if (abs(moveX) > abs(moveY)) {
-          player.setDirection(moveX > 0 ? 1 : -1, 0);
+          player.moveJoystick(moveX > 0 ? 1 : -1, 0);
         } else {
-          player.setDirection(0, moveY > 0 ? 1 : -1);
+          player.moveJoystick(0, moveY > 0 ? 1 : -1);
         }
       } else {
         isJoystickActive = false;
-        if (player) player.moveDirection = null;
       }
     }
   }
@@ -353,7 +328,6 @@ class Enemy {
       arc(0, 0, tileSize / 2, tileSize / 4, 0, PI);
     }
     pop();
-    debug('Enemy ' + this.type + ' drawn at ' + this.x + ',' + this.y);
   }
 
   update() {
@@ -387,7 +361,6 @@ class Enemy {
         if (this.intelligence >= 50 && millis() - this.lastBombTime > bombCooldown * 2) {
           bombs.push(new Bomb(this.x, this.y));
           this.lastBombTime = millis();
-          debug('Enemy ' + this.type + ' placed bomb');
         }
       }
       if (move) {
@@ -398,7 +371,6 @@ class Enemy {
           this.y = newY;
           if (player && player.x === newX && player.y === newY) {
             gameState = 'gameover';
-            debug('Player killed by enemy collision at ' + newX + ',' + newY);
           }
         }
       }
@@ -425,7 +397,6 @@ class Bomb {
         let col = lerpColor(color(34, 57, 34), color(0, 255, 0), random(1));
         particles.push(new Particle(this.x * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2, random(-2, 2), random(-2, 2), col));
       }
-      debug('Bomb exploded at ' + this.x + ',' + this.y);
     }
   }
 
@@ -444,7 +415,6 @@ class Bomb {
     line(tileSize * 0.1, -tileSize * 0.2, tileSize * 0.2, -tileSize / 3);
     noStroke();
     pop();
-    debug('Bomb drawn at ' + this.x + ',' + this.y);
   }
 }
 
@@ -478,7 +448,6 @@ class Explosion {
     textSize(24);
     text('Boom!', 0, 0);
     pop();
-    debug('Explosion drawn at ' + this.x + ',' + this.y);
   }
 
   update() {
@@ -508,7 +477,6 @@ class Explosion {
           (enemy.y === this.y && Math.abs(enemy.x - this.x) <= this.range && !isPathBlocked(this.x, this.y, enemy.x, enemy.y))
         )) {
         enemies.splice(i, 1);
-        debug('Enemy killed at ' + enemy.x + ',' + enemy.y);
       }
     }
 
@@ -517,7 +485,6 @@ class Explosion {
         (player.y === this.y && Math.abs(player.x - this.x) <= this.range && !isPathBlocked(this.x, this.y, player.x, player.y))
       )) {
       gameState = 'gameover';
-      debug('Player killed by explosion');
     }
 
     for (let i = -this.range; i <= this.range; i++) {
@@ -526,24 +493,20 @@ class Explosion {
         if (random() < 0.3) {
           let types = ['extraBomb', 'speedBoost', 'range'];
           powerUps.push(new PowerUp(this.x + i, this.y, random(types)));
-          debug('PowerUp spawned at ' + (this.x + i) + ',' + this.y);
         }
         for (let j = 0; j < 5; j++) {
           particles.push(new Particle((this.x + i) * tileSize + tileSize / 2, this.y * tileSize + tileSize / 2, random(-1, 1), random(-1, 1), color(100, 150, 255, 50)));
         }
-        debug('Wall destroyed at ' + (this.x + i) + ',' + this.y);
       }
       if (this.y + i >= 0 && this.y + i < gridSize && grid[this.y + i][this.x] === 2 && !isPathBlocked(this.x, this.y, this.x, this.y + i)) {
         grid[this.y + i][this.x] = 0;
         if (random() < 0.3) {
           let types = ['extraBomb', 'speedBoost', 'range'];
           powerUps.push(new PowerUp(this.x, this.y + i, random(types)));
-          debug('PowerUp spawned at ' + this.x + ',' + (this.y + i));
         }
         for (let j = 0; j < 5; j++) {
           particles.push(new Particle(this.x * tileSize + tileSize / 2, (this.y + i) * tileSize + tileSize / 2, random(-1, 1), random(-1, 1), color(100, 150, 255, 50)));
         }
-        debug('Wall destroyed at ' + this.x + ',' + (this.y + i));
       }
     }
   }
@@ -599,7 +562,6 @@ function getLevelColors() {
 }
 
 function setup() {
-  debug('Starting setup...');
   createCanvas(gridSize * tileSize, gridSize * tileSize);
   grid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
   for (let i = 0; i < gridSize; i++) {
@@ -632,7 +594,6 @@ function setup() {
     } while (grid[y][x] !== 0 || (x <= 2 && y <= 2) || enemies.some(e => e.x === x && e.y === y));
     if (attempts <= 100) {
       enemies.push(new Enemy(x, y, enemyTypes[Math.floor(random(enemyTypes.length))], level));
-      debug('Enemy spawned at ' + x + ',' + y);
     }
   }
   powerUps = [];
@@ -642,7 +603,6 @@ function setup() {
   fadeAlpha = 0;
   joystick = new Joystick(80, height - 80, 50);
   bombButton = new Button(width - 80, height - 80, 60);
-  debug('Setup completed');
 }
 
 function draw() {
@@ -658,8 +618,6 @@ function draw() {
   if (frameCount % 60 === 0) {
     particles.push(new Particle(random(width), random(height), 0, 0, color(100, 150, 255, 50)));
   }
-
-  debug('Drawing frame...');
 
   if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
     fadeAlpha = min(fadeAlpha + 5, 255);
@@ -725,7 +683,6 @@ function draw() {
     if (attempts <= 100) {
       let types = ['extraBomb', 'speedBoost', 'range'];
       powerUps.push(new PowerUp(x, y, random(types)));
-      debug('PowerUp spawned at ' + x + ',' + y);
       lastPowerUpTime = millis();
     }
   }
@@ -750,9 +707,6 @@ function draw() {
   }
 
   if (player && gameState === 'playing') {
-    if (isJoystickActive) {
-      player.move();
-    }
     player.draw();
   }
 
@@ -772,7 +726,6 @@ function draw() {
         return;
       }
       setup();
-      debug('Level ' + level);
     }
   }
 
@@ -828,7 +781,6 @@ function draw() {
     noLoop();
   }
 
-  // Verbesserte Infobox
   fill(34, 57, 34, 220);
   stroke(0, 255, 128, 200);
   strokeWeight(2);
@@ -852,7 +804,7 @@ function draw() {
   if (touches.length > 0) {
     fill(255, 255, 255, 150);
     textSize(12);
-    text('Tap: Move | B: Bomb', width - 150, 10);
+    text('Joystick: Move | B: Bomb', width - 150, 10);
   }
 
   if (touches.length > 0 || touchActive) {
@@ -882,7 +834,6 @@ function keyPressed() {
   if (key === ' ' && millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
     bombs.push(new Bomb(player.x, player.y));
     lastBombTime = millis();
-    debug('Bomb placed at ' + player.x + ',' + player.y);
   }
   if (player) {
     if (keyCode === UP_ARROW) player.moveOnce(0, -1);
@@ -932,7 +883,6 @@ function touchStarted() {
       if (millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
         bombs.push(new Bomb(player.x, player.y));
         lastBombTime = millis();
-        debug('Bomb placed via touch at ' + player.x + ',' + player.y);
       }
     }
   }
@@ -952,7 +902,6 @@ function touchEnded() {
   joystick.active = false;
   bombButton.active = false;
   isJoystickActive = false;
-  if (player) player.moveDirection = null;
 }
 
 function mousePressed() {
@@ -993,9 +942,9 @@ function restartGame() {
   fadeAlpha = 0;
   touchActive = false;
   isJoystickActive = false;
+  lastJoystickMoveTime = 0;
   loop();
   setup();
-  debug('Game restarted');
 }
 </script>
 </body>
