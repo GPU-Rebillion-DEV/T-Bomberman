@@ -28,8 +28,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding-top: 8rem;
-      padding-bottom: 6rem;
+      padding-top: 6rem;
+      padding-bottom: 8rem;
     }
     #ui-container {
       position: fixed;
@@ -47,11 +47,32 @@
     }
     #fullscreen-btn {
       margin-top: 1rem;
+      background-color: #a0a0a0;
+      color: #1a2521;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      border: 2px solid #707070;
+      box-shadow: inset -2px -2px 0 #505050, inset 2px 2px 0 #d0d0d0;
+      font-size: 0.9rem;
+      transition: background-color 0.2s;
+    }
+    #fullscreen-btn:hover {
+      background-color: #909090;
+    }
+    #fullscreen-btn:active {
+      background-color: #808080;
+      box-shadow: inset 2px 2px 0 #505050, inset -2px -2px 0 #d0d0d0;
     }
     @media (max-width: 768px) {
       header, #instructions {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+      header h1 {
+        font-size: 1.25rem;
+      }
+      header p, #instructions p {
+        font-size: 0.75rem;
       }
       footer {
         padding-bottom: 10rem;
@@ -61,20 +82,35 @@
       }
       #controller {
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
+        align-items: center;
         position: fixed;
         bottom: 1rem;
         width: 100%;
+        padding: 0 1rem;
+        box-sizing: border-box;
         z-index: 20;
         -webkit-user-select: none;
         user-select: none;
       }
+      .dpad-container {
+        display: grid;
+        grid-template-areas:
+          ". up ."
+          "left center right"
+          ". down .";
+        grid-gap: 0;
+        width: 9rem;
+        height: 9rem;
+        background-color: #707070;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        box-shadow: inset -2px -2px 0 #505050, inset 2px 2px 0 #d0d0d0;
+      }
       .controller-btn {
         width: 3rem;
         height: 3rem;
-        margin: 0.5rem;
-        border-radius: 0.5rem;
-        background-color: #00ff80;
+        background-color: #a0a0a0;
         color: #1a2521;
         font-size: 1.5rem;
         display: flex;
@@ -82,9 +118,34 @@
         justify-content: center;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+        border: 2px solid #707070;
+        box-shadow: inset -2px -2px 0 #505050, inset 2px 2px 0 #d0d0d0;
       }
       .controller-btn:active {
-        background-color: #00cc66;
+        background-color: #808080;
+        box-shadow: inset 2px 2px 0 #505050, inset -2px -2px 0 #d0d0d0;
+      }
+      .dpad-up { grid-area: up; border-radius: 0.5rem 0.5rem 0 0; }
+      .dpad-left { grid-area: left; border-radius: 0.5rem 0 0 0.5rem; }
+      .dpad-right { grid-area: right; border-radius: 0 0.5rem 0.5rem 0; }
+      .dpad-down { grid-area: down; border-radius: 0 0 0.5rem 0.5rem; }
+      .dpad-center { grid-area: center; background: none; box-shadow: none; border: none; }
+      .b-button {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        background-color: #a10000;
+        color: #ffffff;
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #710000;
+        box-shadow: inset -2px -2px 0 #510000, inset 2px 2px 0 #d10000;
+      }
+      .b-button:active {
+        background-color: #810000;
+        box-shadow: inset 2px 2px 0 #510000, inset -2px -2px 0 #d10000;
       }
     }
     @media (min-width: 769px) {
@@ -97,13 +158,13 @@
 </head>
 <body>
   <div id="ui-container">
-    <header class="w-full text-center py-4">
-      <h1 class="text-2xl md:text-4xl font-bold text-[#00ff80] mb-2">T-Man's Quest</h1>
-      <p class="text-sm md:text-lg text-gray-300 max-w-4xl mx-auto">Join T-Man in his epic battle against the Tech Giants! Navigate mazes, place bombs, and collect power-ups.</p>
+    <header class="w-full text-center py-2">
+      <h1 class="text-xl md:text-2xl font-bold text-[#00ff80] mb-1">T-Man's Quest</h1>
+      <p class="text-xs md:text-sm text-gray-300 max-w-3xl mx-auto">Join T-Man in his epic battle against the Tech Giants! Navigate mazes, place bombs, and collect power-ups.</p>
     </header>
     <main class="w-full text-center flex flex-col items-center">
-      <div id="instructions" class="text-gray-400 text-sm md:text-base max-w-4xl mx-auto">
-        <p>Use arrow keys (desktop) or controller buttons (mobile) to move T-Man. Press spacebar or bomb button to place bombs. Collect power-ups to enhance abilities!</p>
+      <div id="instructions" class="text-gray-400 text-xs md:text-sm max-w-3xl mx-auto">
+        <p>Use arrow keys (desktop) or D-pad (mobile) to move T-Man. Press spacebar or B button to place bombs. Collect power-ups to enhance abilities!</p>
       </div>
     </main>
   </div>
@@ -136,7 +197,7 @@
       let moveCooldown = 200;
 
       const stories = [
-        { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (desktop) or controller buttons (mobile) to move, place bombs with spacebar or bomb button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
+        { level: 0, text: "Welcome to T-Man's quest!\n\nControl T-Man with arrow keys (desktop) or D-pad (mobile) to move, place bombs with spacebar or B button, destroy enemies, and collect power-ups to defeat the Tech Giants!\n\nPower-Ups:\n- Extra Bomb (+B): Increases max bombs.\n- Speed Boost (S): Increases movement speed.\n- Range Boost (R): Increases bomb explosion range.\n\nTap screen or press ENTER to continue." },
         { level: 1, text: "In a vibrant digital realm, T-Man, a quirky T-shaped hero, lives peacefully. But the Tech Giants—Microsoft, Google, Apple, X, and Amazon—begin to dominate, trapping users in their walled gardens. T-Man rises to free the world, starting in the Data Plains!\n\nTap screen or press ENTER to start." },
         { level: 1.5, text: "Level 1 complete! T-Man clears the Data Plains, but the Tech Giants send stronger minions to stop him.\n\nTap screen or press ENTER to continue." },
         { level: 21, text: "T-Man’s courage inspires others! He storms the Cloud Fortress, where the Tech Giants tighten their grip. Their minions grow smarter, chasing T-Man through mazes. But T-Man’s bombs spark hope!\n\nTap screen or press ENTER to continue." },
@@ -825,7 +886,7 @@
             gameState = 'playing';
             storyState = 'tutorial';
             setup();
-          loop();
+            loop();
             return false;
           }
         }
@@ -973,23 +1034,20 @@
   </div>
   <div id="ui-container">
     <main class="w-full text-center flex flex-col items-center">
-      <button id="fullscreen-btn" class="bg-[#00ff80] text-[#1a2521] px-3 py-1 rounded-lg text-sm md:text-base hover:bg-[#00cc66] transition">Fullscreen</button>
+      <button id="fullscreen-btn">Fullscreen</button>
     </main>
     <footer class="w-full text-center py-4 absolute bottom-0">
       <p class="text-gray-500 text-sm">Created by GPU-Rebellion</p>
     </footer>
     <div id="controller">
-      <div class="flex justify-center">
-        <button class="controller-btn" onclick="handleController('up')">↑</button>
+      <div class="dpad-container">
+        <button class="controller-btn dpad-up" onclick="handleController('up')">↑</button>
+        <button class="controller-btn dpad-left" onclick="handleController('left')">←</button>
+        <div class="dpad-center"></div>
+        <button class="controller-btn dpad-right" onclick="handleController('right')">→</button>
+        <button class="controller-btn dpad-down" onclick="handleController('down')">↓</button>
       </div>
-      <div class="flex justify-center">
-        <button class="controller-btn" onclick="handleController('left')">←</button>
-        <button class="controller-btn" onclick="placeBomb()">B</button>
-        <button class="controller-btn" onclick="handleController('right')">→</button>
-      </div>
-      <div class="flex justify-center">
-        <button class="controller-btn" onclick="handleController('down')">↓</button>
-      </div>
+      <button class="b-button" onclick="placeBomb()">B</button>
     </div>
   </div>
   <script>
