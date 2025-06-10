@@ -37,7 +37,7 @@
         let enemies = [];
         let powerUps = [];
         let level = 1;
-        let gameState = 'playing';
+        let gameState = 'start'; // Changed to start state
         let lastBombTime = 0;
         let bombCooldown = 500;
         let storyState = 'tutorial';
@@ -566,7 +566,6 @@
           } else if (level >= 21) {
             return {
               ground: color(34, 57, 68),
-              grid:ế
               grid: color(51, 85, 102, 50),
               wall: color(85, 102, 119),
               wallHighlight: color(119, 136, 153),
@@ -639,6 +638,21 @@
             line(0, i, width, i);
           }
           noStroke();
+
+          if (gameState === 'start') {
+            fadeAlpha = min(fadeAlpha + 5, 255);
+            fill(34, 57, 34, fadeAlpha);
+            rect(50, 50, width - 100, height - 100, 20);
+            fill(0, 255, 128);
+            textSize(48);
+            textAlign(CENTER, CENTER);
+            text('T-Man\'s Quest', width / 2, height / 2 - 50);
+            fill(119, 136, 119);
+            textSize(18);
+            text('Press ENTER or tap to start', width / 2, height / 2 + 20);
+            return;
+          }
+
           if (frameCount % 60 === 0) {
             particles.push(new Particle(random(width), random(height), 0, 0, color(100, 150, 255, 50)));
           }
@@ -812,6 +826,16 @@
         }
 
         function keyPressed() {
+          if (gameState === 'start') {
+            if (keyCode === ENTER) {
+              gameState = 'playing';
+              storyState = 'tutorial';
+              setup();
+              loop();
+              return false;
+            }
+            return false;
+          }
           if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
             if (keyCode === ENTER) {
               storyState = 'playing';
@@ -847,6 +871,13 @@
         }
 
         function touchStarted() {
+          if (gameState === 'start') {
+            gameState = 'playing';
+            storyState = 'tutorial';
+            setup();
+            loop();
+            return false;
+          }
           if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
             storyState = 'playing';
             gameState = 'playing';
@@ -903,6 +934,13 @@
         }
 
         function mousePressed() {
+          if (gameState === 'start') {
+            gameState = 'playing';
+            storyState = 'tutorial';
+            setup();
+            loop();
+            return false;
+          }
           if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
             storyState = 'playing';
             gameState = 'playing';
@@ -927,7 +965,7 @@
 
         function restartGame() {
           level = 1;
-          gameState = 'playing';
+          gameState = 'start'; // Return to start screen instead of tutorial
           storyState = 'tutorial';
           storyIndex = 0;
           bombs = [];
@@ -942,7 +980,7 @@
           isJoystickActive = false;
           lastJoystickMoveTime = 0;
           loop();
-          setup();
+          // Note: setup() is not called here to avoid initializing the game grid on restart screen
         }
       </script>
     </div>
