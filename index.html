@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>T-Man's Quest</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -13,13 +13,14 @@
       margin: 0;
       overflow-y: auto;
       overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
     }
     canvas {
       border: 2px solid #00ff80;
       border-radius: 8px;
       display: block;
       max-width: 100%;
-      max-height: 100vh;
+      max-height: 90vh;
     }
     #game-container {
       position: relative;
@@ -28,7 +29,7 @@
       justify-content: center;
       align-items: center;
       padding-top: 8rem;
-      padding-bottom: 4rem;
+      padding-bottom: 6rem;
     }
     #ui-container {
       position: fixed;
@@ -36,6 +37,7 @@
       left: 0;
       width: 100%;
       pointer-events: none;
+      z-index: 10;
     }
     #ui-container > * {
       pointer-events: auto;
@@ -46,13 +48,13 @@
     #fullscreen-btn {
       margin-top: 1rem;
     }
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       header, #instructions {
         padding-left: 1rem;
         padding-right: 1rem;
       }
       footer {
-        padding-bottom: 8rem;
+        padding-bottom: 10rem;
       }
       #fullscreen-btn {
         display: none;
@@ -60,9 +62,12 @@
       #controller {
         display: flex;
         justify-content: center;
-        position: absolute;
+        position: fixed;
         bottom: 1rem;
         width: 100%;
+        z-index: 20;
+        -webkit-user-select: none;
+        user-select: none;
       }
       .controller-btn {
         width: 3rem;
@@ -75,13 +80,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
       .controller-btn:active {
         background-color: #00cc66;
       }
     }
-    @media (min-width: 641px) {
+    @media (min-width: 769px) {
       canvas {
         width: 80vmin;
         height: 80vmin;
@@ -104,6 +110,7 @@
   <div id="game-container">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
     <script>
+      console.log('JavaScript loaded');
       let tileSize;
       let gridSize = 15;
       let canvasSize;
@@ -566,7 +573,8 @@
       }
 
       function setup() {
-        canvasSize = Math.min(window.innerWidth, window.innerHeight) * (window.innerWidth > 640 ? 0.8 : 1.0);
+        console.log('Setup called');
+        canvasSize = Math.min(window.innerWidth, window.innerHeight) * (window.innerWidth > 768 ? 0.8 : 0.9);
         canvasSize = Math.floor(canvasSize / gridSize) * gridSize;
         tileSize = canvasSize / gridSize;
         createCanvas(canvasSize, canvasSize);
@@ -609,10 +617,11 @@
         bombRange = 2;
         fadeAlpha = 0;
         lastMoveTime = 0;
+        console.log('Controller should be visible on mobile');
       }
 
       function windowResized() {
-        canvasSize = Math.min(window.innerWidth, window.innerHeight) * (window.innerWidth > 640 ? 0.8 : 1.0);
+        canvasSize = Math.min(window.innerWidth, window.innerHeight) * (window.innerWidth > 768 ? 0.8 : 0.9);
         canvasSize = Math.floor(canvasSize / gridSize) * gridSize;
         tileSize = canvasSize / gridSize;
         resizeCanvas(canvasSize, canvasSize);
@@ -798,13 +807,13 @@
           rect(bx, by, tileSize * 5, tileSize * 1.75, 10);
           fill(255, 255, 255, 100);
           textSize(tileSize * 0.5);
-          text('Restart', canvasSize / 2 + 2, by + tileSize * 0.925);
-          fill(34, 57, 34);
+          text('Restart', canvasSize / 2 + tileSize * 0.5, by);
+          fill(34, 34, 34);
           text('Restart', canvasSize / 2, by + tileSize * 0.875);
           fill(255, 255, 255, 100);
           textSize(tileSize * 0.35);
-          text('Tap screen or press ENTER', canvasSize / 2 + 2, by + tileSize * 1.425);
-          fill(34, 57, 34);
+          text('Tap screen or press ENTER', canvasSize / 2 + tileSize * 0.35, by);
+          fill(34, 255, 34);
           text('Tap screen or press ENTER', canvasSize / 2, by + tileSize * 1.375);
           noLoop();
         }
@@ -816,10 +825,9 @@
             gameState = 'playing';
             storyState = 'tutorial';
             setup();
-            loop();
+          loop();
             return false;
           }
-          return false;
         }
         if (storyState === 'tutorial' || storyState === 'intro' || storyState === 'level1complete') {
           if (keyCode === ENTER) {
@@ -827,9 +835,9 @@
             gameState = 'playing';
             setup();
             loop();
-            return false;
+            return true;
           }
-          return false;
+          return true;
         }
         if (gameState === 'gameover' || gameState === 'victory') {
           if (keyCode === ENTER) {
@@ -840,7 +848,7 @@
         if (gameState !== 'playing') return false;
         if (key === ' ' && millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
           bombs.push(new Bomb(player.x, player.y));
-          lastBombTime = millis();
+          console.log('Bomb placed via keyboard');
         }
         if (player) {
           if (keyCode === UP_ARROW) player.moveOnce(0, -1);
@@ -863,7 +871,6 @@
           storyState = 'playing';
           gameState = 'playing';
           setup();
-          loop();
           return false;
         }
         if (gameState === 'gameover') {
@@ -929,6 +936,7 @@
         fadeAlpha = 0;
         lastMoveTime = 0;
         loop();
+        console.log('Game restarted');
       }
 
       function toggleFullscreen() {
@@ -942,13 +950,14 @@
       }
 
       function handleController(direction) {
-        if (gameState !== 'playing' || !player) return;
+        if (gameState !== 'playing') return;
         if (millis() - lastMoveTime > moveCooldown / playerSpeed) {
           if (direction === 'up') player.moveOnce(0, -1);
           else if (direction === 'down') player.moveOnce(0, 1);
           else if (direction === 'left') player.moveOnce(-1, 0);
           else if (direction === 'right') player.moveOnce(1, 0);
           lastMoveTime = millis();
+          console.log(`Moved ${direction}`);
         }
       }
 
@@ -957,6 +966,7 @@
         if (millis() - lastBombTime > bombCooldown && bombs.filter(b => !b.exploded).length < maxBombs) {
           bombs.push(new Bomb(player.x, player.y));
           lastBombTime = millis();
+          console.log('Bomb placed via controller');
         }
       }
     </script>
@@ -968,7 +978,7 @@
     <footer class="w-full text-center py-4 absolute bottom-0">
       <p class="text-gray-500 text-sm">Created by GPU-Rebellion</p>
     </footer>
-    <div id="controller" class="flex flex-col items-center">
+    <div id="controller">
       <div class="flex justify-center">
         <button class="controller-btn" onclick="handleController('up')">↑</button>
       </div>
